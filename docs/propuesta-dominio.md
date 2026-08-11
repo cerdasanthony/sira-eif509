@@ -6,7 +6,7 @@
 
 ## 1 · Identificación
 
-**Integrante:** Anthony Cerdas Chacón — carné `[COMPLETAR]`
+**Integrante:** Anthony Cerdas Chacón — carné 402410478
 **Modalidad:** trabajo individual (sin pareja asignada).
 **Sistema propuesto:** **SIRA — Sistema de Rutinas y Apoyos**
 **Repositorio:** https://github.com/cerdasanthony/sira-eif509
