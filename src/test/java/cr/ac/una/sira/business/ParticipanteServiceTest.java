@@ -8,12 +8,9 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Prueba de la regla de negocio sin levantar Spring. Se puede armar el servicio
- * a mano porque recibe el repositorio por constructor.
- */
 class ParticipanteServiceTest {
 
+    // Se puede armar a mano porque recibe el repositorio por constructor.
     private final ParticipanteService servicio = new ParticipanteService(new ParticipanteRepository());
 
     @Test

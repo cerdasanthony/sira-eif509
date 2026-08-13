@@ -16,13 +16,8 @@ public class ParticipanteService {
         this.participanteRepository = participanteRepository;
     }
 
-    /**
-     * Participantes activos, ordenados por nombre.
-     *
-     * Regla: solo se asignan rutinas a participantes activos, asi que el listado
-     * operativo no muestra a los inactivos. El repositorio devuelve todo; filtrar
-     * y ordenar son decisiones de negocio y por eso estan aca.
-     */
+    // Regla: solo se asignan rutinas a participantes activos, asi que el listado
+    // operativo no muestra a los inactivos.
     public List<Participante> listarActivos() {
         return participanteRepository.buscarTodos().stream()
                 .filter(Participante::activo)

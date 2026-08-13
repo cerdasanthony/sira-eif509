@@ -17,7 +17,6 @@ public class ParticipanteController {
         this.participanteService = participanteService;
     }
 
-    // No filtra ni ordena: eso ya lo hizo el servicio. Aca solo se mapea al DTO.
     @GetMapping
     public List<ParticipanteResponse> listar() {
         return participanteService.listarActivos().stream()
