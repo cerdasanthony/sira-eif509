@@ -3,12 +3,10 @@ package cr.ac.una.sira.data;
 import java.time.LocalDate;
 
 /**
- * CAPA DE DATOS - modelo.
- * Participante: la persona que sigue las rutinas de apoyo.
+ * La persona que sigue las rutinas de apoyo.
  *
- * En el Laboratorio 2 este tipo pasa a ser una entidad JPA persistida en
- * PostgreSQL. Por ahora es un record inmutable para que el esqueleto compile
- * y levante sin base de datos.
+ * Es un record mientras no haya base de datos. En el Lab 2 tiene que volverse
+ * una clase normal con @Entity, porque JPA necesita construir el objeto vacio.
  */
 public record Participante(
         Long id,

@@ -4,10 +4,8 @@ import cr.ac.una.sira.data.SaludRepository;
 import org.springframework.stereotype.Service;
 
 /**
- * CAPA DE NEGOCIO.
- * Resuelve el problema de negocio. No sabe que existe HTTP.
- *
- * Direccion de la dependencia: negocio --> datos.
+ * Por ahora solo delega. Cuando haya que revisar varias fuentes (PostgreSQL,
+ * Mongo) y decidir un estado global, esa decision es de negocio y va aca.
  */
 @Service
 public class SaludService {

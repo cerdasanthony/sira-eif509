@@ -6,12 +6,11 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * CAPA DE DATOS - repositorio.
- * Unico punto del sistema que sabe DE DONDE salen los datos.
+ * Devuelve todos los participantes, sin filtrar. El filtro de inactivos es una
+ * regla de negocio y vive en ParticipanteService.
  *
- * Hoy la fuente es una lista en memoria; en el Laboratorio 2 se reemplaza por
- * Spring Data JPA sobre PostgreSQL. Ese cambio no debe obligar a tocar la capa
- * de negocio ni la de presentacion: ese es justamente el valor de separar capas.
+ * La fuente es una lista en memoria hasta el Lab 2, donde esto pasa a ser
+ * Spring Data JPA sobre PostgreSQL.
  */
 @Repository
 public class ParticipanteRepository {

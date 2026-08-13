@@ -9,9 +9,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Prueba unitaria de la capa de negocio, sin levantar Spring.
- * Solo es posible porque el servicio recibe su repositorio por constructor:
- * esa es una consecuencia practica de separar las capas.
+ * Prueba de la regla de negocio sin levantar Spring. Se puede armar el servicio
+ * a mano porque recibe el repositorio por constructor.
  */
 class ParticipanteServiceTest {
 
@@ -21,6 +20,7 @@ class ParticipanteServiceTest {
     void listarActivos_excluyeParticipantesInactivos() {
         List<Participante> activos = servicio.listarActivos();
 
+        // isNotEmpty va primero: sobre una lista vacia, allMatch pasaria igual.
         assertThat(activos).isNotEmpty();
         assertThat(activos).allMatch(Participante::activo);
     }

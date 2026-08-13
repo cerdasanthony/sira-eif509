@@ -3,12 +3,8 @@ package cr.ac.una.sira.data;
 import org.springframework.stereotype.Repository;
 
 /**
- * CAPA DE DATOS.
- * Lee y escribe informacion de la fuente de datos. Es la capa mas interna:
- * no depende de ninguna otra capa del sistema.
- *
- * Hoy devuelve un valor fijo. En el Laboratorio 2 esta capa hablara con
- * PostgreSQL (datos relacionales) y MongoDB (bitacora de observaciones).
+ * Estado de la fuente de datos. Hoy es un valor fijo; cuando haya base de datos
+ * esto pasa a ser una consulta real de verificacion.
  */
 @Repository
 public class SaludRepository {

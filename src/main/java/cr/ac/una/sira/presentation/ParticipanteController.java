@@ -7,11 +7,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * CAPA DE PRESENTACION.
- * Traduce HTTP <-> negocio. No filtra, no ordena y no valida reglas:
- * eso ya lo hizo ParticipanteService.
- */
 @RestController
 @RequestMapping("/api/participantes")
 public class ParticipanteController {
@@ -22,6 +17,7 @@ public class ParticipanteController {
         this.participanteService = participanteService;
     }
 
+    // No filtra ni ordena: eso ya lo hizo el servicio. Aca solo se mapea al DTO.
     @GetMapping
     public List<ParticipanteResponse> listar() {
         return participanteService.listarActivos().stream()

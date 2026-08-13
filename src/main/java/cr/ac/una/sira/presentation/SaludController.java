@@ -6,12 +6,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * CAPA DE PRESENTACION.
- * Recibe la peticion HTTP y devuelve la respuesta. No contiene reglas de negocio.
- *
- * Direccion de la dependencia: presentacion --> negocio.
- */
 @RestController
 public class SaludController {
 

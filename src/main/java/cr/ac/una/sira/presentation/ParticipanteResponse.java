@@ -1,9 +1,9 @@
 package cr.ac.una.sira.presentation;
 
 /**
- * CAPA DE PRESENTACION - DTO de salida.
- * Define QUE expone la API, independiente de como se guarden los datos por dentro.
- * Asi un cambio en el modelo de datos no rompe automaticamente el contrato HTTP.
+ * Lo que expone la API, que no tiene por que ser lo mismo que se guarda.
+ * Participante trae ademas la fecha de nacimiento, que el listado no necesita
+ * y que en este dominio es dato sensible.
  */
 public record ParticipanteResponse(Long id, String nombre) {
 }
