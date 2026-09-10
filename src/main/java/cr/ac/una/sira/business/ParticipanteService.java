@@ -4,7 +4,6 @@ import cr.ac.una.sira.data.Participante;
 import cr.ac.una.sira.data.ParticipanteRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -19,9 +18,6 @@ public class ParticipanteService {
     // Regla: solo se asignan rutinas a participantes activos, asi que el listado
     // operativo no muestra a los inactivos.
     public List<Participante> listarActivos() {
-        return participanteRepository.buscarTodos().stream()
-                .filter(Participante::activo)
-                .sorted(Comparator.comparing(Participante::nombre))
-                .toList();
+        return participanteRepository.findByActivoTrueOrderByNombreAsc();
     }
 }

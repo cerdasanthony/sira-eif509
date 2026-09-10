@@ -11,11 +11,13 @@ Proyecto del curso EIF509 Desarrollo de Aplicaciones Basadas en Web, NRC 51092, 
 - [Propuesta de dominio](docs/propuesta-dominio.md)
 - [Arquitectura](docs/arquitectura.md)
 - [Laboratorio 2: capa de datos completa](docs/lab2-capa-datos.md)
+- [Laboratorio 3: ORM, repositorios, consultas y N+1](docs/lab3-persistencia-orm.md)
 - [ADR-001: organización en capas](docs/adr/ADR-001-arquitectura-en-capas.md)
 
 ## Stack
 
-Java 21, Spring Boot 3.3.13, Gradle con wrapper, JUnit 5 y AssertJ. PostgreSQL 16, MongoDB 7 y Flyway entran en el Lab 2; el frontend React en el Lab 6.
+Java 21, Spring Boot 3.3.13, Spring Data JPA/MongoDB, Hibernate, Flyway,
+PostgreSQL 16, MongoDB 7, Testcontainers, Gradle, JUnit 5 y AssertJ.
 
 ## Cómo correrlo
 
@@ -49,10 +51,12 @@ Levanta la aplicación en el puerto 8080. Con la app corriendo:
 | Endpoint | Respuesta |
 |----------|-----------|
 | `GET /api/salud` | `{"estado":"OK - SIRA en linea"}` |
-| `GET /api/participantes` | `[{"id":1,"nombre":"Participante A"},{"id":2,"nombre":"Participante B"}]` |
+| `GET /api/participantes` | `[{"id":1,"nombre":"Mateo Mendez"},{"id":2,"nombre":"Sofia Solano"}]` |
 | `GET /actuator/health` | `{"status":"UP"}` |
 
-Los endpoints actuales siguen usando una lista en memoria. La capa de datos del Lab 2 queda preparada y reproducible con Docker Compose, Flyway y los seeds de PostgreSQL/MongoDB.
+Los endpoints consultan PostgreSQL mediante Spring Data JPA. Hibernate valida el
+esquema creado por Flyway y la bitacora documental se accede mediante el
+repositorio de Spring Data MongoDB.
 
 ## Estructura
 
@@ -72,7 +76,10 @@ Las dependencias van en una sola dirección: `presentación -> negocio -> datos`
 ./gradlew test
 ```
 
-`SiraApplicationTests` verifica que el contexto de Spring levanta. `ParticipanteServiceTest` verifica que el listado excluye inactivos y ordena por nombre, sin levantar Spring.
+Las pruebas unitarias validan la configuracion y el servicio sin levantar Spring.
+Ocho pruebas de integracion usan Testcontainers con PostgreSQL 16 real para
+validar migraciones, mapeos `LAZY`, CRUD generico, JPQL, Criteria y la correccion
+del problema N+1.
 
 ## Integración continua
 

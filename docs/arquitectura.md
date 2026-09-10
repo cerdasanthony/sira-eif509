@@ -25,7 +25,9 @@ flowchart TB
         subgraph dat["data/"]
             SR["SaludRepository"]
             PR["ParticipanteRepository"]
-            MOD["Participante"]
+            JPA["6 entidades JPA"]
+            REPOS["Repositorios JPA genericos"]
+            MONGO["Repositorio de bitacora"]
         end
 
         CFG["config/"]
@@ -41,12 +43,12 @@ flowchart TB
     PC --> PS
     SS --> SR
     PS --> PR
-    PR -.->|devuelve| MOD
-    PR -.-> PG
-    PR -.-> MG
+    PR -->|devuelve| JPA
+    REPOS --> PG
+    MONGO --> MG
 ```
 
-Las flechas continuas son dependencias reales en el código. Las punteadas todavía no existen.
+Las flechas representan dependencias reales del Laboratorio 3.
 
 | Capa | Paquete | Responsabilidad |
 |------|---------|-----------------|
@@ -73,17 +75,20 @@ sequenceDiagram
     participant C as ParticipanteController
     participant S as ParticipanteService
     participant R as ParticipanteRepository
+    participant PG as PostgreSQL
 
     U->>C: GET /api/participantes
     C->>S: listarActivos()
-    S->>R: buscarTodos()
-    R-->>S: los 3 participantes
-    Note over S: filtra inactivos y ordena
+    S->>R: findByActivoTrueOrderByNombreAsc()
+    R->>PG: SELECT activos ORDER BY nombre
+    PG-->>R: participantes activos
+    R-->>S: participantes ordenados
     S-->>C: los 2 activos
     C-->>U: 200 OK · JSON
 ```
 
-El repositorio devuelve tres y la API responde dos. El filtro está en el servicio y no en el repositorio porque "solo se asignan rutinas a participantes activos" es una regla de negocio, no un detalle de almacenamiento.
+El servicio expresa el caso de uso y el repositorio hace el filtrado y ordenamiento
+en PostgreSQL, evitando cargar filas que la API no necesita.
 
 ## Estructura
 
@@ -92,10 +97,14 @@ src/main/java/cr/ac/una/sira/
 ├── SiraApplication.java
 ├── presentation/   SaludController, ParticipanteController, ParticipanteResponse
 ├── business/       SaludService, ParticipanteService
-├── data/           SaludRepository, ParticipanteRepository, Participante
-└── config/         (vacío en el Lab 1)
+├── data/           Entidades JPA, documento Mongo, repositorios y Specifications
+└── config/         Configuración transversal
 
 src/test/java/cr/ac/una/sira/
 ├── SiraApplicationTests.java
-└── business/ParticipanteServiceTest.java
+├── business/ParticipanteServiceTest.java
+└── data/PersistenciaIntegracionTest.java
 ```
+
+La evidencia de JPQL, Criteria y del problema N+1 esta en
+[`lab3-persistencia-orm.md`](lab3-persistencia-orm.md).

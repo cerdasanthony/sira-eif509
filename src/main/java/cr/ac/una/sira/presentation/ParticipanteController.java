@@ -20,7 +20,7 @@ public class ParticipanteController {
     @GetMapping
     public List<ParticipanteResponse> listar() {
         return participanteService.listarActivos().stream()
-                .map(p -> new ParticipanteResponse(p.id(), p.nombre()))
+                .map(p -> new ParticipanteResponse(p.getId(), p.getNombre()))
                 .toList();
     }
 }
