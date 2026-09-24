@@ -12,12 +12,14 @@ Proyecto del curso EIF509 Desarrollo de Aplicaciones Basadas en Web, NRC 51092, 
 - [Arquitectura](docs/arquitectura.md)
 - [Laboratorio 2: capa de datos completa](docs/lab2-capa-datos.md)
 - [Laboratorio 3: ORM, repositorios, consultas y N+1](docs/lab3-persistencia-orm.md)
+- [Laboratorio 4: capa de negocio, transacciones, DTOs y pruebas](docs/lab4-capa-negocio.md)
 - [ADR-001: organización en capas](docs/adr/ADR-001-arquitectura-en-capas.md)
 
 ## Stack
 
 Java 21, Spring Boot 3.3.13, Spring Data JPA/MongoDB, Hibernate, Flyway,
-PostgreSQL 16, MongoDB 7, Testcontainers, Gradle, JUnit 5 y AssertJ.
+PostgreSQL 16, MongoDB 7, Bean Validation, Testcontainers, Gradle, JUnit 5,
+Mockito, AssertJ y JaCoCo.
 
 ## Cómo correrlo
 
@@ -52,6 +54,8 @@ Levanta la aplicación en el puerto 8080. Con la app corriendo:
 |----------|-----------|
 | `GET /api/salud` | `{"estado":"OK - SIRA en linea"}` |
 | `GET /api/participantes` | `[{"id":1,"nombre":"Mateo Mendez"},{"id":2,"nombre":"Sofia Solano"}]` |
+| `POST /api/rutinas/publicaciones` | Publica una rutina despues de validar todas las reglas |
+| `POST /api/ejecuciones/cierres` | Registra todos los pasos y cierra la ejecucion transaccionalmente |
 | `GET /actuator/health` | `{"status":"UP"}` |
 
 Los endpoints consultan PostgreSQL mediante Spring Data JPA. Hibernate valida el
@@ -76,10 +80,12 @@ Las dependencias van en una sola dirección: `presentación -> negocio -> datos`
 ./gradlew test
 ```
 
-Las pruebas unitarias validan la configuracion y el servicio sin levantar Spring.
-Ocho pruebas de integracion usan Testcontainers con PostgreSQL 16 real para
-validar migraciones, mapeos `LAZY`, CRUD generico, JPQL, Criteria y la correccion
-del problema N+1.
+Las pruebas unitarias con Mockito ejercitan los caminos felices y las reglas de
+los dos procesos sin levantar Spring. Las pruebas de integracion usan
+Testcontainers con PostgreSQL 16 real para validar persistencia y demostrar que
+un fallo intermedio revierte por completo el cierre de una ejecucion. JaCoCo
+genera el reporte en `build/reports/jacoco/test/html/index.html` y exige al menos
+70 % de cobertura en la capa de negocio.
 
 ## Integración continua
 

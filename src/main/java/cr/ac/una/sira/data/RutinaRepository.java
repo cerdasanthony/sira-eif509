@@ -18,6 +18,16 @@ public interface RutinaRepository extends RepositorioJpaBase<Rutina, Long> {
     List<Rutina> buscarPublicadasDelParticipante(
             @Param("participanteId") Long participanteId);
 
+    @EntityGraph(attributePaths = "pasos")
+    @Query("""
+            select distinct r from Rutina r
+            where r.participante.id = :participanteId
+              and r.estado = cr.ac.una.sira.data.EstadoRutina.PUBLICADA
+            order by r.horaInicio
+            """)
+    List<Rutina> buscarPublicadasConDetalleDelParticipante(
+            @Param("participanteId") Long participanteId);
+
     // Punto de partida de la demostracion N+1: carga rutinas, pero no sus pasos.
     @Query("""
             select r from Rutina r

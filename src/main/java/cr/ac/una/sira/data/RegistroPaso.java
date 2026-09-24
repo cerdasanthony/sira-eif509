@@ -43,6 +43,14 @@ public class RegistroPaso {
     protected RegistroPaso() {
     }
 
+    public RegistroPaso(Ejecucion ejecucion, PasoRutina pasoRutina,
+                        ResultadoPaso resultado, String observacionCorta) {
+        this.ejecucion = ejecucion;
+        this.pasoRutina = pasoRutina;
+        this.resultado = resultado;
+        this.observacionCorta = observacionCorta;
+    }
+
     public Long getId() {
         return id;
     }

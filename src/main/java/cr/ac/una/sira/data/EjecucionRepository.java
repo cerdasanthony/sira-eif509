@@ -8,6 +8,8 @@ import java.util.List;
 
 public interface EjecucionRepository extends RepositorioJpaBase<Ejecucion, Long> {
 
+    boolean existsByRutinaIdAndFecha(Long rutinaId, LocalDate fecha);
+
     // Consulta de negocio JPQL 2: historial cerrado de una rutina en un rango.
     @Query("""
             select e from Ejecucion e

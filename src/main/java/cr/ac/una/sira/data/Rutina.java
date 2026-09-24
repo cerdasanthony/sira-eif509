@@ -74,6 +74,17 @@ public class Rutina {
     protected Rutina() {
     }
 
+    public void publicar(OffsetDateTime fechaPublicacion) {
+        this.estado = EstadoRutina.PUBLICADA;
+        this.publicadoEn = fechaPublicacion;
+    }
+
+    public int duracionTotalMinutos() {
+        return pasos.stream()
+                .mapToInt(paso -> paso.getDuracionEstimadaMin())
+                .sum();
+    }
+
     public Long getId() {
         return id;
     }

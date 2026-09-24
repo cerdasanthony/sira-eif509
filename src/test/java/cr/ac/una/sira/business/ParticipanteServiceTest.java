@@ -19,10 +19,18 @@ class ParticipanteServiceTest {
     void listarActivos_delegaElFiltroYOrdenamientoAlRepositorio() {
         Participante mateo = mock(Participante.class);
         Participante sofia = mock(Participante.class);
+        when(mateo.getId()).thenReturn(1L);
+        when(mateo.getNombre()).thenReturn("Mateo");
+        when(sofia.getId()).thenReturn(2L);
+        when(sofia.getNombre()).thenReturn("Sofia");
         when(repositorio.findByActivoTrueOrderByNombreAsc()).thenReturn(List.of(mateo, sofia));
 
-        List<Participante> activos = servicio.listarActivos();
+        var activos = servicio.listarActivos();
 
-        assertThat(activos).containsExactly(mateo, sofia);
+        assertThat(activos)
+                .extracting("id", "nombre")
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(1L, "Mateo"),
+                        org.assertj.core.groups.Tuple.tuple(2L, "Sofia"));
     }
 }

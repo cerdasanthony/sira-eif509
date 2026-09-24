@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import cr.ac.una.sira.business.dto.ParticipanteResumen;
+
 import java.util.List;
 
 @RestController
@@ -18,9 +20,7 @@ public class ParticipanteController {
     }
 
     @GetMapping
-    public List<ParticipanteResponse> listar() {
-        return participanteService.listarActivos().stream()
-                .map(p -> new ParticipanteResponse(p.getId(), p.getNombre()))
-                .toList();
+    public List<ParticipanteResumen> listar() {
+        return participanteService.listarActivos();
     }
 }

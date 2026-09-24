@@ -63,6 +63,23 @@ public class Ejecucion {
     protected Ejecucion() {
     }
 
+    public Ejecucion(Rutina rutina, LocalDate fecha, LocalTime horaInicio,
+                     Usuario registradoPor) {
+        this.rutina = rutina;
+        this.fecha = fecha;
+        this.horaInicio = horaInicio;
+        this.registradoPor = registradoPor;
+        this.estado = EstadoEjecucion.ABIERTA;
+    }
+
+    public void cerrar(LocalTime horaFin, BigDecimal adherencia,
+                       OffsetDateTime cerradoEn) {
+        this.horaFin = horaFin;
+        this.adherencia = adherencia;
+        this.cerradoEn = cerradoEn;
+        this.estado = EstadoEjecucion.CERRADA;
+    }
+
     public Long getId() {
         return id;
     }

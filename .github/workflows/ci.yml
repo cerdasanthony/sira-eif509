@@ -35,3 +35,11 @@ jobs:
           name: reporte-pruebas
           path: build/reports/tests/test
           if-no-files-found: ignore
+
+      - name: Publicar reporte de cobertura JaCoCo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-cobertura-jacoco
+          path: build/reports/jacoco/test
+          if-no-files-found: ignore
