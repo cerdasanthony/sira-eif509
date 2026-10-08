@@ -1,6 +1,7 @@
 package cr.ac.una.sira.data;
 
 import jakarta.persistence.CollectionTable;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
@@ -63,7 +64,8 @@ public class Rutina {
     @Column(name = "dia_semana", nullable = false)
     private Set<Short> diasSemana = new HashSet<>();
 
-    @OneToMany(mappedBy = "rutina", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "rutina", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orden ASC")
     private List<PasoRutina> pasos = new ArrayList<>();
 
@@ -73,6 +75,24 @@ public class Rutina {
 
     protected Rutina() {
     }
+
+    public Rutina(Participante participante, String nombre, LocalTime horaInicio,
+                  LocalDate desde, LocalDate hasta, Set<Short> dias) {
+        this.participante = participante;
+        actualizar(nombre, horaInicio, desde, hasta, dias);
+    }
+
+    public void actualizar(String nombre, LocalTime horaInicio, LocalDate desde,
+                           LocalDate hasta, Set<Short> dias) {
+        this.nombre = nombre;
+        this.horaInicio = horaInicio;
+        this.vigenciaDesde = desde;
+        this.vigenciaHasta = hasta;
+        this.diasSemana.clear();
+        this.diasSemana.addAll(dias);
+    }
+
+    public void agregarPaso(PasoRutina paso) { this.pasos.add(paso); }
 
     public void publicar(OffsetDateTime fechaPublicacion) {
         this.estado = EstadoRutina.PUBLICADA;

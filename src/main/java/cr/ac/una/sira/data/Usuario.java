@@ -29,6 +29,12 @@ public class Usuario {
     @Column(nullable = false, unique = true, length = 160)
     private String correo;
 
+    @Column(name = "password_hash", length = 100)
+    private String passwordHash;
+
+    @Column(name = "creado_por_id")
+    private Long creadoPorId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private RolUsuario rol;
@@ -60,6 +66,21 @@ public class Usuario {
 
     public Long getId() {
         return id;
+    }
+
+    public String getPasswordHash() { return passwordHash; }
+
+    public void cambiarPassword(String hash) { this.passwordHash = hash; }
+
+    public Long getCreadoPorId() { return creadoPorId; }
+
+    public void asignarCreador(Long usuarioId) { this.creadoPorId = usuarioId; }
+
+    public void desactivar() { this.activo = false; }
+
+    public void actualizarPerfil(String nombre, String correo) {
+        this.nombre = nombre;
+        this.correo = correo;
     }
 
     public String getNombre() {

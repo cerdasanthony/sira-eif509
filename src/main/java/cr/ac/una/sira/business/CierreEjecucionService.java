@@ -87,6 +87,7 @@ public class CierreEjecucionService {
                 .map(paso -> crearRegistro(ejecucion, paso, resultadosPorPaso.get(paso.getId())))
                 .toList();
         registroPasoRepository.saveAllAndFlush(registros);
+        ejecucion.registrar(registros);
 
         ejecucion.cerrar(
                 entrada.horaFin(), adherencia, OffsetDateTime.now(reloj));

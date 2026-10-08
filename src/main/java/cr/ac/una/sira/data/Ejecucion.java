@@ -80,6 +80,10 @@ public class Ejecucion {
         this.estado = EstadoEjecucion.CERRADA;
     }
 
+    public void registrar(List<RegistroPaso> registros) {
+        this.registros.addAll(registros);
+    }
+
     public Long getId() {
         return id;
     }

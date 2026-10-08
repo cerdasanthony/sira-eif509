@@ -108,3 +108,28 @@ src/test/java/cr/ac/una/sira/
 
 La evidencia de JPQL, Criteria y del problema N+1 esta en
 [`lab3-persistencia-orm.md`](lab3-persistencia-orm.md).
+
+## Evolucion en el Laboratorio 5
+
+Los diagramas anteriores documentan la estructura del Laboratorio 3. El contrato
+actual esta versionado en `/api/v1`; consultar [Laboratorio 5](lab5-api-rest.md).
+
+```mermaid
+flowchart LR
+    cliente[Cliente HTTP] --> seguridad[SecurityFilterChain: JWT y roles]
+    seguridad --> controlador[Controladores v1 y DTOs con Valid]
+    controlador --> servicio[Servicios API: propiedad y transacciones]
+    servicio --> procesos[PublicacionRutinaService / CierreEjecucionService]
+    servicio --> repos[Repositorios JPA y Specifications]
+    procesos --> repos
+    repos --> pg[(PostgreSQL)]
+    controlador --> errores[Advice: ProblemDetail]
+    seguridad --> erroresJwt[ProblemasHttp: 401 y 403]
+```
+
+`AccesoRecursosService` verifica el usuario activo y la relacion con el
+participante en negocio. Las colecciones incluyen ese mismo alcance en sus
+Specifications. `ContratoApi` contiene los DTOs v1 y metadatos de pagina;
+las entidades se convierten dentro de la transaccion, antes de salir del servicio.
+La autenticacion y la configuracion son transversales: negocio usa Spring Security
+para obtener el actor, sin depender de servlet, controladores ni semantica HTTP.

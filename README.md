@@ -13,12 +13,14 @@ Proyecto del curso EIF509 Desarrollo de Aplicaciones Basadas en Web, NRC 51092, 
 - [Laboratorio 2: capa de datos completa](docs/lab2-capa-datos.md)
 - [Laboratorio 3: ORM, repositorios, consultas y N+1](docs/lab3-persistencia-orm.md)
 - [Laboratorio 4: capa de negocio, transacciones, DTOs y pruebas](docs/lab4-capa-negocio.md)
+- [Laboratorio 5: API REST, JWT, OpenAPI y pruebas](docs/lab5-api-rest.md)
+- [Coleccion de peticiones REST](docs/sira-api.http)
 - [ADR-001: organización en capas](docs/adr/ADR-001-arquitectura-en-capas.md)
 
 ## Stack
 
 Java 21, Spring Boot 3.3.13, Spring Data JPA/MongoDB, Hibernate, Flyway,
-PostgreSQL 16, MongoDB 7, Bean Validation, Testcontainers, Gradle, JUnit 5,
+PostgreSQL 16, MongoDB 7, Spring Security JWT, springdoc/Swagger UI, Bean Validation, Testcontainers, Gradle, JUnit 5,
 Mockito, AssertJ y JaCoCo.
 
 ## Cómo correrlo
@@ -45,22 +47,31 @@ docker compose up -d
 ```
 
 ```bash
-./gradlew bootRun
+./gradlew bootRun --args="--spring.profiles.active=demo"
 ```
 
 Levanta la aplicación en el puerto 8080. Con la app corriendo:
 
+El contrato completo, los permisos y los cuerpos de ejemplo estan en
+[Laboratorio 5](docs/lab5-api-rest.md) y [sira-api.http](docs/sira-api.http).
+Swagger UI: <http://localhost:8080/swagger-ui.html>.
+
 | Endpoint | Respuesta |
 |----------|-----------|
-| `GET /api/salud` | `{"estado":"OK - SIRA en linea"}` |
-| `GET /api/participantes` | `[{"id":1,"nombre":"Mateo Mendez"},{"id":2,"nombre":"Sofia Solano"}]` |
-| `POST /api/rutinas/publicaciones` | Publica una rutina despues de validar todas las reglas |
-| `POST /api/ejecuciones/cierres` | Registra todos los pasos y cierra la ejecucion transaccionalmente |
-| `GET /actuator/health` | `{"status":"UP"}` |
+| `POST /auth/login` | JWT Bearer, valido 15 minutos |
+| `GET /api/v1/usuarios/me` | Perfil autenticado |
+| `GET /api/v1/participantes` | Pagina de participantes propios |
+| `POST /api/v1/participantes` | 201 + Location |
+| `GET /api/v1/rutinas` | Pagina con filtros de participante, estado y vigencia |
+| `POST /api/v1/rutinas/{id}/publicaciones` | Publicacion validada por los servicios del Lab 4 |
+| `POST /api/v1/ejecuciones/cierres` | Cierre transaccional, 201 + Location |
+| `GET /api/v1/ejecuciones` | Historial propio por fechas y adherencia |
+| `GET /actuator/health` | Estado de salud publico, sin detalles internos |
 
-Los endpoints consultan PostgreSQL mediante Spring Data JPA. Hibernate valida el
-esquema creado por Flyway y la bitacora documental se accede mediante el
-repositorio de Spring Data MongoDB.
+Con el perfil `demo`, iniciar sesion con `mariana.vargas@sira.local` (PROFESIONAL)
+o `laura.mendez@sira.local` (ENCARGADO), password `SiraDemo2026!`.
+Enviar `Authorization: Bearer <accessToken>` en cada llamada a `/api/v1`.
+El perfil normal no configura contrasenas de demostracion.
 
 ## Estructura
 
@@ -85,7 +96,9 @@ los dos procesos sin levantar Spring. Las pruebas de integracion usan
 Testcontainers con PostgreSQL 16 real para validar persistencia y demostrar que
 un fallo intermedio revierte por completo el cierre de una ejecucion. JaCoCo
 genera el reporte en `build/reports/jacoco/test/html/index.html` y exige al menos
-70 % de cobertura en la capa de negocio.
+70 % de cobertura en la capa de negocio. La suite REST se ejecuta localmente
+sobre H2 y tambien sobre PostgreSQL con Testcontainers cuando Docker esta
+activo. Sin Docker se omiten las pruebas reales; la CI exige que no se omitan.
 
 ## Integración continua
 

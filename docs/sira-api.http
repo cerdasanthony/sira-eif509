@@ -1,0 +1,192 @@
+# Coleccion para VS Code REST Client. Arrancar con perfil demo.
+# Ejecutar loginProfesional y loginEncargado antes de los bloques protegidos.
+# Los POST crean datos: repetir algunos bloques produce 409 por diseno.
+@base = http://localhost:8080
+@pro = {{loginProfesional.response.body.accessToken}}
+@enc = {{loginEncargado.response.body.accessToken}}
+@usuarioId = {{nuevoEncargado.response.body.id}}
+@participanteId = {{nuevoParticipante.response.body.id}}
+@rutinaId = {{nuevaRutina.response.body.id}}
+@borradorId = {{borradorDescartable.response.body.id}}
+@ejecucionId = {{cierreDiario.response.body.ejecucionId}}
+
+### Login profesional: 200
+# @name loginProfesional
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{"correo":"mariana.vargas@sira.local","password":"SiraDemo2026!"}
+
+### Login encargado: 200
+# @name loginEncargado
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{"correo":"laura.mendez@sira.local","password":"SiraDemo2026!"}
+
+### Salud protegida: 200
+GET {{base}}/api/v1/salud
+Authorization: Bearer {{pro}}
+
+### Usuarios visibles: 200, metadatos y filtros
+GET {{base}}/api/v1/usuarios?rol=ENCARGADO&activo=true&page=0&size=10&sort=nombre,asc
+Authorization: Bearer {{pro}}
+
+### Perfil: 200
+GET {{base}}/api/v1/usuarios/me
+Authorization: Bearer {{pro}}
+
+### Actualizar perfil propio: 200 (password opcional)
+PUT {{base}}/api/v1/usuarios/me
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"nombre":"Mariana Vargas Soto","correo":"mariana.vargas@sira.local"}
+
+### Crear encargado: 201 + Location; rol determinado en el servicio
+# @name nuevoEncargado
+POST {{base}}/api/v1/usuarios
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"nombre":"Cuidador de prueba","correo":"cuidador.{{$timestamp}}@sira.local","password":"Password2026!"}
+
+### Consultar cuenta recien creada: 200
+GET {{base}}/api/v1/usuarios/{{usuarioId}}
+Authorization: Bearer {{pro}}
+
+### Participantes asignados con dos filtros: 200
+GET {{base}}/api/v1/participantes?activo=true&nombre=Mateo&page=0&size=10&sort=nombre,asc
+Authorization: Bearer {{pro}}
+
+### Crear participante: 201 + Location
+# @name nuevoParticipante
+POST {{base}}/api/v1/participantes
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"nombre":"Participante de prueba","fechaNacimiento":"2016-04-18","encargadoId":{{usuarioId}},"activo":true}
+
+### Consultar participante: 200
+GET {{base}}/api/v1/participantes/{{participanteId}}
+Authorization: Bearer {{pro}}
+
+### Reemplazar datos: 200
+PUT {{base}}/api/v1/participantes/{{participanteId}}
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"nombre":"Participante actualizado","fechaNacimiento":"2016-04-18","encargadoId":3,"activo":true}
+
+### Rutinas propias con filtros y paginacion: 200
+GET {{base}}/api/v1/rutinas?participanteId=1&estado=PUBLICADA&vigenteEn=2026-10-08&page=0&size=10&sort=horaInicio,asc
+Authorization: Bearer {{pro}}
+
+### Crear rutina de un participante nuevo: 201 + Location
+# @name nuevaRutina
+POST {{base}}/api/v1/rutinas
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"participanteId":{{participanteId}},"nombre":"Prepararse para dormir","horaInicio":"21:00:00","vigenciaDesde":"2026-08-01","vigenciaHasta":null,"diasSemana":[1,2,3,4,5,6,7],"pasos":[{"descripcion":"Preparar pijama","duracionEstimadaMin":5,"pictograma":"pijama"},{"descripcion":"Guardar ropa","duracionEstimadaMin":5}]}
+
+### Consultar rutina y pasos: 200
+GET {{base}}/api/v1/rutinas/{{rutinaId}}
+Authorization: Bearer {{pro}}
+
+### Coleccion de pasos: 200
+GET {{base}}/api/v1/rutinas/{{rutinaId}}/pasos
+Authorization: Bearer {{pro}}
+
+### Reemplazar borrador y pasos: 200; ejecutar antes de publicar
+PUT {{base}}/api/v1/rutinas/{{rutinaId}}
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"participanteId":{{participanteId}},"nombre":"Prepararse para dormir","horaInicio":"21:15:00","vigenciaDesde":"2026-08-01","vigenciaHasta":null,"diasSemana":[1,2,3,4,5,6,7],"pasos":[{"descripcion":"Preparar pijama","duracionEstimadaMin":5},{"descripcion":"Guardar ropa","duracionEstimadaMin":5}]}
+
+### Proceso de publicacion: 200; repetir devuelve 409
+POST {{base}}/api/v1/rutinas/{{rutinaId}}/publicaciones
+Authorization: Bearer {{pro}}
+
+### Historial propio con rango/adherencia: 200
+GET {{base}}/api/v1/ejecuciones?rutinaId=1&estado=CERRADA&desde=2026-08-01&hasta=2026-10-08&adherenciaMinima=60&page=0&size=10&sort=fecha,desc
+Authorization: Bearer {{enc}}
+
+### Proceso de cierre: 201 + Location; repetir fecha devuelve 409
+# Usa rutina 1 y pasos 1-4 de las migraciones originales.
+# @name cierreDiario
+POST {{base}}/api/v1/ejecuciones/cierres
+Authorization: Bearer {{enc}}
+Content-Type: application/json
+
+{"rutinaId":1,"fecha":"2026-08-26","horaInicio":"06:30:00","horaFin":"06:50:00","resultados":[{"pasoRutinaId":1,"resultado":"LOGRADO"},{"pasoRutinaId":2,"resultado":"LOGRADO"},{"pasoRutinaId":3,"resultado":"CON_APOYO"},{"pasoRutinaId":4,"resultado":"NO_LOGRADO"}]}
+
+### Consultar ejecucion creada: 200
+GET {{base}}/api/v1/ejecuciones/{{ejecucionId}}
+Authorization: Bearer {{pro}}
+
+### Coleccion de registros: 200
+GET {{base}}/api/v1/ejecuciones/{{ejecucionId}}/registros
+Authorization: Bearer {{enc}}
+
+### Crear borrador para eliminar: 201
+# @name borradorDescartable
+POST {{base}}/api/v1/rutinas
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"participanteId":1,"nombre":"Borrador descartable","horaInicio":"23:00:00","vigenciaDesde":"2026-08-01","vigenciaHasta":null,"diasSemana":[],"pasos":[]}
+
+### Eliminar borrador: 204
+DELETE {{base}}/api/v1/rutinas/{{borradorId}}
+Authorization: Bearer {{pro}}
+
+### Crear participante sin historial para eliminar: 201
+# @name participanteDescartable
+POST {{base}}/api/v1/participantes
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"nombre":"Descartable","fechaNacimiento":"2016-04-18","encargadoId":3,"activo":true}
+
+### Eliminar participante sin rutinas: 204
+DELETE {{base}}/api/v1/participantes/{{participanteDescartable.response.body.id}}
+Authorization: Bearer {{pro}}
+
+### Formato invalido: 400 Problem Details
+POST {{base}}/api/v1/participantes
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"nombre":"","fechaNacimiento":"2016-04-18","encargadoId":3,"activo":true}
+
+### Sin autenticacion: 401 Problem Details
+GET {{base}}/api/v1/participantes
+
+### Recurso de otro propietario: 403 Problem Details
+GET {{base}}/api/v1/participantes/2
+Authorization: Bearer {{pro}}
+
+### Recurso inexistente: 404 Problem Details
+GET {{base}}/api/v1/rutinas/999999
+Authorization: Bearer {{pro}}
+
+### Rutina publicada inmutable: 409 Problem Details
+DELETE {{base}}/api/v1/rutinas/1
+Authorization: Bearer {{pro}}
+
+### Regla de negocio invalida (usuario 1 no es encargado): 422
+POST {{base}}/api/v1/participantes
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"nombre":"Prueba invalida","fechaNacimiento":"2016-04-18","encargadoId":1,"activo":true}
+
+### OpenAPI publico: 200
+GET {{base}}/v3/api-docs
+
+### Desactivar cuenta propia: 204. Ejecutar al terminar la demostracion.
+# Su token dejara de permitir consultas; el perfil demo no reactiva cuentas.
+DELETE {{base}}/api/v1/usuarios/me
+Authorization: Bearer {{enc}}

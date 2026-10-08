@@ -63,6 +63,14 @@ public class Participante {
         return id;
     }
 
+    public void actualizar(Usuario encargado, String nombre, LocalDate fechaNacimiento,
+                           boolean activo) {
+        this.encargado = encargado;
+        this.nombre = nombre;
+        this.fechaNacimiento = fechaNacimiento;
+        this.activo = activo;
+    }
+
     public Usuario getProfesional() {
         return profesional;
     }

@@ -15,7 +15,7 @@ public class SaludController {
         this.saludService = saludService;
     }
 
-    @GetMapping("/api/salud")
+    @GetMapping("/api/v1/salud")
     public Map<String, String> salud() {
         return Map.of("estado", saludService.estadoDelSistema());
     }

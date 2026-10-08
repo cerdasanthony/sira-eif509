@@ -28,6 +28,19 @@ jobs:
       - name: Compilar y correr pruebas
         run: ./gradlew build --no-daemon
 
+      - name: Exigir pruebas reales de integracion sin omisiones
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import xml.etree.ElementTree as ET
+          reports = list(pathlib.Path('build/test-results/test').glob('TEST-*IntegracionTest.xml'))
+          assert reports, 'No hay reportes de integracion'
+          for path in reports:
+              suite = ET.parse(path).getroot()
+              assert int(suite.get('tests', 0)) > 0, path
+              assert int(suite.get('skipped', 0)) == 0, f'Pruebas omitidas: {path}'
+          PY
+
       - name: Publicar reporte de pruebas
         if: always()
         uses: actions/upload-artifact@v4

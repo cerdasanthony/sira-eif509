@@ -44,6 +44,15 @@ public class PasoRutina {
     protected PasoRutina() {
     }
 
+    public PasoRutina(Rutina rutina, Short orden, String descripcion,
+                      Short duracionEstimadaMin, String pictograma) {
+        this.rutina = rutina;
+        this.orden = orden;
+        this.descripcion = descripcion;
+        this.duracionEstimadaMin = duracionEstimadaMin;
+        this.pictograma = pictograma;
+    }
+
     public Long getId() {
         return id;
     }
