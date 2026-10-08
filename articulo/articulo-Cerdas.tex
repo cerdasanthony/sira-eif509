@@ -1,0 +1,245 @@
+\documentclass[conference,letterpaper]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\renewcommand{\abstractname}{Resumen}
+\renewcommand{\IEEEkeywordsname}{Palabras clave}
+\renewcommand{\refname}{Referencias}
+\renewcommand{\thesubsection}{\Alph{subsection}}
+\begin{document}
+\shorthandoff{<>}
+\title{Detección de expresiones faciales con MediaPipe en aplicaciones web y su aplicación al comunicador Mírame}
+\author{\IEEEauthorblockN{Anthony Cerdas Chacón}
+\IEEEauthorblockA{Escuela de Informática\\Universidad Nacional de Costa Rica\\
+anthony.cerdas.chacon@est.una.ac.cr\\
+EIF509 Desarrollo de Aplicaciones Basadas en Web\\II Ciclo 2026}}
+\maketitle
+\begin{abstract}
+Este artículo analiza el uso de MediaPipe Face Mesh y Face Landmarker en aplicaciones web a partir de documentación técnica, literatura científica y el código del comunicador Mírame. Compara la inferencia en el navegador con una arquitectura que envía fotogramas a un servidor, considerando rendimiento, complejidad, costo, mantenimiento, privacidad y disponibilidad. También examina el uso de puntos de referencia y coeficientes blendshape para describir configuraciones faciales. La ejecución local evita transmitir video para la inferencia, pero su funcionamiento depende de los recursos del dispositivo y de la disponibilidad del modelo. En Mírame, las medidas se almacenan en el navegador y se asocian con la selección explícita de pictogramas. Se propone mantener esa organización y comprobar latencia, cobertura y concordancia con observación independiente antes de evaluar el registro con el participante. En SIRA, el proyecto de los laboratorios del curso, no se propone incorporar perfiles faciales al cálculo de adherencia, que utiliza resultados de pasos registrados por el encargado. El estudio no incluye una comparación experimental entre arquitecturas ni resultados de validación del clasificador. Sus conclusiones se limitan a las diferencias documentadas, la implementación inspeccionada y las decisiones propuestas para ambos sistemas.
+\end{abstract}
+\begin{IEEEkeywords}
+expresiones faciales, mediapipe, aplicaciones web, comunicación aumentativa, procesamiento local.
+\end{IEEEkeywords}
+
+\section{Introducción}
+El navegador reúne APIs de cámara, ejecución de modelos y presentación de resultados. MediaPipe Face Landmarker entrega puntos de referencia faciales, coeficientes blendshape y matrices de transformación [1]. Una aplicación puede usar esas salidas para animar un avatar o registrar movimientos del rostro. Su integración requiere definir dónde se procesa el video, qué datos se almacenan y cómo se utilizan los resultados.
+
+La inferencia puede competir con las tareas de interfaz cuando se ejecuta en el mismo hilo. Además, las medidas extraídas no determinan por sí solas una emoción. Barrett et al. describen variaciones entre personas, situaciones y culturas que limitan la inferencia de estados emocionales a partir de movimientos faciales [2]. El lugar de ejecución y el significado de la salida son, por tanto, cuestiones distintas.
+
+El caso práctico es Mírame, una aplicación web progresiva de comunicación aumentativa y alternativa mediante pictogramas. El código vincula medidas faciales de una ventana temporal previa con cada selección [3]. El registro permite consultar qué medidas precedieron a un toque. Su utilidad para la persona cuidadora aún no se ha evaluado con el participante.
+
+El objetivo es comparar las condiciones de ejecución de MediaPipe en el navegador y en un servidor, y examinar sus implicaciones para Mírame. Se analiza también la representación facial utilizada por el clasificador. La aplicación al proyecto del curso, SIRA, se aborda por separado porque sus registros y procesos de negocio difieren de los del comunicador.
+
+Se revisaron documentación técnica, investigaciones y el código de Mírame en el commit 8876451, con corte al 5 de octubre de 2026. El 8 de octubre se revisó la documentación de SIRA para contrastar la aplicación del enfoque al proyecto de los laboratorios. El estudio es documental y arquitectónico: no incluye un experimento comparativo de rendimiento ni una evaluación con usuarios. Las propuestas de diseño se presentan como trabajo pendiente.
+
+
+\section{Marco conceptual}
+
+\subsection{De Face Mesh a Face Landmarker}
+Face Mesh estima 468 puntos tridimensionales de referencia a partir de una cámara monocular. Su documentación anuncia el reemplazo por una nueva solución en mayo de 2023 [4]. Face Landmarker integra detección de rostro, una malla de 478 puntos y 52 coeficientes de expresión [1]. Mírame utiliza esta última interfaz.
+
+Se utiliza Face Mesh para describir el antecedente geométrico y Face Landmarker para identificar la API inspeccionada. Esta distinción evita atribuir opciones de configuración o salidas de una interfaz a la otra. La versión de biblioteca y modelo se registra en la descripción de Mírame.
+
+Grishchenko et al. presentan Blendshapes GHUM, que predice 52 coeficientes faciales a partir de puntos de referencia, y reportan más de 30 fotogramas por segundo en los teléfonos estudiados [5]. Esa cifra corresponde a las condiciones de su trabajo. No permite estimar directamente la cadencia de Mírame, que también ejecuta interfaz, almacenamiento y visualización.
+
+
+\subsection{Representación facial e interpretación}
+Un punto de referencia describe una ubicación estimada del rostro. Un coeficiente blendshape describe la activación aproximada de una deformación facial. La ficha oficial del modelo sitúa estos coeficientes en el intervalo de cero a uno y señala que su uso principal previsto es entretenimiento de realidad aumentada, especialmente animación de avatares [6]. La ficha no define estos coeficientes como probabilidades de estados emocionales.
+
+Las unidades de acción del Sistema de Codificación de Acción Facial describen movimientos observables. En Mírame, su correspondencia con blendshapes es una aproximación del instrumento [3]. La ficha del modelo describe limitaciones asociadas a iluminación, movimiento y oclusión [6]. Por ello, una diferencia en los coeficientes puede requerir revisar las condiciones de captura antes de interpretarla como cambio facial.
+
+Zhang et al. estudiaron 23 adultos japoneses con FaceReader y encontraron asociaciones positiva y negativa entre valencia subjetiva dinámica y las unidades de acción 12 y 04, respectivamente [7]. El trabajo aporta un antecedente para examinar esas señales. Utiliza otra población y otro extractor, de modo que sus resultados no establecen umbrales para Mírame.
+
+La extracción produce medidas; el clasificador les asigna categorías mediante reglas. La interpretación de esas categorías requiere un contraste adicional. En Mírame, positivo y negativo son nombres operativos del prototipo. Su correspondencia con la conducta observada debe evaluarse con datos independientes del ajuste de las reglas.
+
+
+\subsection{Componentes de una aplicación web local}
+La especificación Media Capture and Streams define el acceso a medios mediante getUserMedia, permisos y restricciones de captura [8]. La aplicación debe distinguir la configuración solicitada de la efectivamente obtenida. Pedir una frecuencia ideal no asegura recibirla. También debe gestionar permiso denegado, dispositivo ausente y pérdida de la pista de video, manteniendo disponible la función principal cuando sea posible.
+
+Los service workers interceptan solicitudes y gestionan una caché de recursos [9]. IndexedDB almacena registros estructurados mediante índices y transacciones [10]. En Mírame, la caché contiene recursos de ejecución y la base de datos conserva sesiones. Estas funciones no trasladan la inferencia a otro hilo.
+
+La documentación web de MediaPipe señala que detect y detectForVideo son síncronos y bloquean el hilo que los invoca. Propone utilizar trabajadores web para ejecutar el procesamiento en otro hilo [1]. El uso de GPU no cambia por sí solo esa organización del código.
+
+
+\subsection{Normalización y accesibilidad}
+Mírame transforma un subconjunto de coeficientes en catorce características y las compara con una línea base por sesión [3]. Utiliza mediana y un estimador robusto de escala Qn, cuyo fundamento estadístico fue desarrollado por Rousseeuw y Croux [11]. La normalización expresa cambio respecto a una referencia operativa. No transforma esa referencia en norma psicológica ni establece por sí misma los cortes entre categorías.
+
+Mírame utiliza selección táctil. WCAG 2.2 incluye criterios sobre tamaño de objetivos y alternativas a movimientos de arrastre [12], que permiten revisar la interacción del tablero. Este artículo no realiza una auditoría de conformidad. La respuesta a los toques y la estabilidad de las opciones forman parte de la evaluación pendiente.
+
+
+\section{Análisis comparativo}
+
+\subsection{Alternativas y criterios explícitos}
+Se comparan dos arquitecturas: inferencia local en el navegador y envío de fotogramas a un servidor que devuelve medidas. En ambas se supone una representación facial comparable, para separar el lugar de ejecución de la calidad del modelo. Una tercera opción, extraer localmente y sincronizar medidas, se considera una extensión posible; no corresponde a la arquitectura actual de Mírame.
+
+Los criterios de comparación son rendimiento, complejidad, costo, mantenibilidad, seguridad y privacidad, disponibilidad e interpretabilidad. La Tabla I resume diferencias en el flujo y las responsabilidades de cada arquitectura. La documentación respalda las capacidades de captura, inferencia y persistencia [1], [8]-[10]. Sin mediciones comparables de dispositivo, red y servidor, no se establece cuál alternativa tiene menor latencia o costo.
+
+\begin{table}[ht]
+\caption{Comparación arquitectónica según criterios técnicos}
+\label{tab:comparacion}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\columnwidth}{|p{0.2\columnwidth}|X|X|}\hline
+Criterio & Navegador & Servidor \\ \hline
+Rendimiento & Cómputo y carga de interfaz en el dispositivo & Agrega transferencia, espera y cómputo remoto \\ \hline
+Complejidad & Permisos, compatibilidad, caché y ciclo de cámara & Añade API, transporte, colas y operación \\ \hline
+Costo & Usa recursos del dispositivo y distribución de archivos & Requiere dimensionar inferencia y tráfico \\ \hline
+Mantenibilidad & Versiones de modelo y recursos en clientes & Actualización central del modelo y contratos \\ \hline
+Privacidad & Conserva el procesamiento de imágenes en el equipo & Recibe fotogramas y requiere definir su custodia \\ \hline
+Disponibilidad & Depende de recursos cargados y del equipo & Depende además de red y servicio remoto \\ \hline
+Interpretación & Requiere validar reglas y categorías & Requiere la misma validación del constructo \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Rendimiento y disponibilidad}
+En el navegador, el camino crítico comprende captura, preparación del fotograma, inferencia y actualización de resultados. En el servidor añade codificación, transferencia, espera de recursos y retorno. El procesamiento local elimina esos segmentos de red para la inferencia, pero puede tardar más en un dispositivo con recursos limitados. Por eso la menor cantidad de etapas no basta para asegurar menor latencia total.
+
+En Mírame, la latencia debe medirse junto con el tiempo de respuesta a un toque y a la solicitud de voz. La frecuencia de captura, la cantidad de fotogramas procesados y la frecuencia de escritura en la base de datos son medidas diferentes. Una tasa reducida de registros no permite deducir la cadencia del detector; tampoco la fluidez de la pantalla establece la resolución temporal del análisis facial.
+
+La ejecución remota desplaza el cómputo al servidor, aunque mantiene la dependencia de red para obtener medidas. Si se interrumpe la conexión, una cámara activa no basta para continuar la inferencia remota. Mírame conserva el procesamiento local y un tablero que puede utilizarse sin análisis facial. La continuidad de ambos componentes debe comprobarse por separado.
+
+El uso sin conexión requiere disponer de código, runtime, modelo y pictogramas. En la implementación inspeccionada, los recursos propios se precargan y las respuestas obtenidas se incorporan a caché [3]. Si la carga inicial queda incompleta, pueden faltar recursos necesarios para el análisis facial. La comprobación propuesta consiste en cargar la aplicación, desconectar la red y volver a abrirla.
+
+
+\subsection{Complejidad, costo y mantenibilidad}
+La implementación local gestiona compatibilidad de navegador, aceleración, permisos de cámara, suspensión de la página y actualización de caché. Una implementación remota añade un servicio de inferencia, contratos de API, transporte y control de carga. En ambos casos se necesitan manejo de errores y registros de la versión que produjo cada resultado.
+
+El costo comprende desarrollo, operación y recursos utilizados durante las sesiones. Localmente, la inferencia consume CPU o GPU, memoria y batería del dispositivo. En el servidor, el dimensionamiento depende de concurrencia, duración de sesiones y tráfico. Este estudio no estima montos: no se definieron volumen de uso ni infraestructura para una alternativa remota.
+
+En el servidor, el modelo puede actualizarse en un punto de despliegue. En el navegador, la actualización debe contemplar clientes con recursos anteriores en caché. Un cambio de modelo o reglas puede modificar las salidas en cualquiera de las dos arquitecturas. Conservar versiones, parámetros y esquema de exportación permite identificar qué configuración produjo cada registro.
+
+
+\subsection{Seguridad, privacidad y representación}
+La inferencia local de Mírame no envía fotogramas a un servidor de procesamiento. Conserva medidas, tiempos y selecciones que pueden asociarse con una sesión [3]. Estos registros requieren procedimientos de acceso, retención, exportación y borrado. La alternativa remota añade la recepción y custodia de fotogramas en el servidor. La comparación de privacidad debe considerar esos flujos y las copias exportadas.
+
+El prototipo descarga biblioteca y modelo desde proveedores externos [3]. La inferencia es local, pero obtener esos recursos requiere conexión durante su carga inicial. Distribuirlos desde el mismo origen de la aplicación cambiaría esa dependencia y añadiría la tarea de mantener sus versiones. Esta opción no está implementada en el código revisado.
+
+Las reglas geométricas utilizan distancias y ángulos calculados sobre puntos de referencia. Requieren seleccionar puntos, controlar pose y definir una normalización. Los blendshapes proporcionan coeficientes ya calculados por el modelo, por lo que cambian esas tareas iniciales. Su incorporación no elimina la necesidad de comprobar qué canales tienen señal medible y cómo responde el clasificador a datos ausentes.
+
+Mírame utiliza blendshapes y dispone de una puntuación basada en aproximaciones de AU12 y AU4, además de reglas regionales más amplias [3]. Se propone comparar ese núcleo con el compuesto extendido usando las mismas sesiones de evaluación. La elección dependerá de los resultados de concordancia, cobertura y estabilidad entre sesiones. El código disponible permite preparar esa comparación, pero este artículo no presenta sus resultados.
+
+
+\section{Aplicación al dominio propio}
+
+\subsection{Necesidad y arquitectura de Mírame}
+Mírame permite seleccionar pictogramas y producir salida de voz. La selección determina la opción elegida y el análisis facial agrega medidas anteriores al toque para consulta posterior. En el diseño examinado, la clasificación es un registro complementario. No se utiliza como confirmación de una necesidad del usuario.
+
+La arquitectura inspeccionada separa captura, extracción, clasificación, tablero y persistencia. El módulo face.js configura Face Landmarker en modo VIDEO para un rostro, habilita blendshapes y matrices, e intenta GPU con recuperación en CPU. Fija la biblioteca @mediapipe/tasks-vision en 0.10.14 y utiliza la versión 1 del modelo facial publicada por Google [3]. Estos datos identifican la implementación estudiada; no se afirma que sean las versiones más recientes.
+
+El módulo features.js agrupa los coeficientes en catorce medidas, entre ellas sonrisa, descenso de cejas y apertura bucal. classifier.js aplica normalización, reglas y estabilización temporal. storage.js conserva sesiones, muestras, eventos, selecciones y observaciones en IndexedDB. app.js coordina el flujo y la asociación con una ventana de cinco segundos previos a la selección. La Fig. 1 resume el recorrido de datos implementado.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[node distance=4mm,box/.style={draw,align=center,font=\footnotesize,minimum width=47mm,minimum height=6mm},>=Stealth]
+\node[box] (camara) {Cámara del dispositivo};
+\node[box,below=of camara] (modelo) {Face Landmarker};
+\node[box,below=of modelo] (medidas) {Características y clasificación temporal};
+\node[box,below=of medidas] (ventana) {Ventana de cinco segundos};
+\node[box,below=of ventana] (seleccion) {Asociación con selección explícita};
+\node[box,below=of seleccion] (datos) {Registros locales en IndexedDB};
+\node[box,below=of datos] (consulta) {Consulta de la persona cuidadora};
+\draw[->] (camara)--(modelo);
+\draw[->] (modelo)--(medidas);
+\draw[->] (medidas)--(ventana);
+\draw[->] (ventana)--(seleccion);
+\draw[->] (seleccion)--(datos);
+\draw[->] (datos)--(consulta);
+\end{tikzpicture}
+\caption{Recorrido local de datos en Mírame. El tablero funciona independientemente del análisis facial. Elaboración a partir del código inspeccionado [3].}
+\label{fig:flujo}
+\end{figure}
+La separación permite conservar la selección táctil cuando el componente facial no está disponible. Se propone comprobar permiso denegado, fallo de carga del modelo y ausencia de rostro. Los resultados deben distinguir funcionamiento del tablero y proporción de selecciones con datos faciales válidos; son medidas de componentes diferentes.
+
+
+\subsection{Clasificación temporal y límites de las reglas}
+La normalización por canal puede expresarse como
+\begin{equation}
+z_j(t)=\frac{x_j(t)-m_j}{s_j},
+\end{equation}
+donde $x_j$ es la medida actual, $m_j$ la mediana basal y $s_j$ la escala operativa.
+Cuando un canal no presenta dispersión medible, el código utiliza una escala sustituta y registra esa condición [3]. El análisis de sesiones debe identificar esos canales para distinguir una dispersión estimada de una medida durante la referencia.
+
+El clasificador tónico produce positivo, neutro, negativo leve y negativo intenso. Sus cortes predeterminados son +1, -0,75 y -2; pueden cambiar mediante configuración. El suavizado usa alfa 0,18, la histéresis un margen de 0,25 y la permanencia acumulada por defecto es de 500 ms [3]. Son parámetros del prototipo, no valores establecidos por MediaPipe ni umbrales validados para el participante. Cualquier resultado debe acompañarse de la configuración efectiva de su sesión.
+
+La vía fásica registra transitorios por separado. La permanencia de 500 ms de la vía tónica limita su respuesta a eventos más cortos. En la vía fásica, la duración estimada depende de la cadencia, la fuente temporal y la disponibilidad de fotogramas. Ese registro describe un cambio en un canal; no demuestra que corresponda a una microexpresión emocional.
+
+La ventana previa permite estudiar coocurrencias entre medidas faciales y selecciones. No establece que un gesto haya causado una elección. Un patrón anterior al pictograma agua, por ejemplo, también puede coincidir con postura o esfuerzo de selección. Para examinarlo se necesitan varias sesiones, información sobre datos faltantes y observaciones de contexto.
+
+
+\subsection{Decisión de implementación y trabajo pendiente}
+Para la prueba de concepto de Mírame se propone mantener Face Landmarker en el navegador y almacenar medidas derivadas. Esta organización conserva el flujo ya implementado y no añade transferencia de video para la inferencia. Su continuidad sin red depende de disponer de los recursos cargados, y su rendimiento debe medirse en el dispositivo objetivo.
+
+Quedan por medir la respuesta de la interfaz durante la inferencia y el comportamiento al reiniciar sin red. Si la ejecución del detector interfiere con los toques, puede evaluarse su traslado a un Web Worker; el código inspeccionado lo invoca directamente. También hace falta definir conservación y eliminación de archivos exportados. Estas actividades son propuestas, no resultados de la revisión.
+
+El traslado a un trabajador requiere intercambiar fotogramas y resultados entre hilos y coordinar sus tiempos. No modifica la cadencia que entrega la cámara. La distribución de recursos propios requiere mantener versiones de código y modelo. La gestión de exportaciones añade procedimientos fuera de IndexedDB, porque borrar la base local no elimina archivos descargados. Cada cambio debe evaluarse según el problema que pretende resolver.
+
+
+\subsection{Evaluación pendiente y reglas de aceptación}
+Se propone una evaluación en tres niveles. El técnico caracterizará tableta, navegador y versión: latencia mediana y percentil 95, intervalos entre fotogramas, detección de rostro, descarte por pose y respuesta del tablero. Las condiciones incluirán variaciones controladas de iluminación, distancia y movimiento. Se ensayará explícitamente el fallo de cámara y la pérdida de conexión para verificar continuidad de la comunicación.
+
+El nivel de concordancia comparará categorías con una persona observadora que no vea la salida del sistema. Se definirán categorías y tolerancia temporal antes de recolectar. Las sesiones de calibración se separarán de las de evaluación y las reglas se congelarán antes del contraste. Se informarán matriz de confusión, acuerdo observado y F1 macro, junto con soporte por categoría y datos ausentes. Una categoría sin ejemplos suficientes no permitirá concluir rendimiento sobre ella.
+
+Los fotogramas consecutivos de una misma sesión no se tratarán como participantes independientes. Separar muestras al azar entre ajuste y evaluación podría filtrar la misma línea base y condiciones a ambos conjuntos. La sesión es la unidad mínima de separación; los resúmenes deben reconocer dependencia temporal. Si la evaluación se limita a una persona y un dispositivo, las conclusiones conservarán ese alcance.
+
+La evaluación de interacción registrará errores de toque, solicitudes de ayuda y comentarios de la persona cuidadora sobre la consulta de sesiones. El reordenamiento de pictogramas se evaluará como una función separada, con comparación entre tablero fijo y reordenado. La concordancia de etiquetas faciales no mide por sí sola el efecto de cambiar la ubicación de las opciones.
+
+Los límites de aceptación se fijarán antes de la evaluación confirmatoria, apoyados en un piloto técnico. Como condiciones mínimas de diseño se proponen continuidad del tablero, trazabilidad de parámetros y representación explícita de ausencia de datos. Si no hay observaciones independientes, no se reportará exactitud del clasificador. El estudio con el participante requiere cumplir el protocolo institucional de consentimiento y custodia. El presente análisis no incorpora resultados de esa evaluación.
+
+
+\subsection{Aplicación al sistema de los laboratorios SIRA}
+SIRA, Sistema de Rutinas y Apoyos, es el proyecto desarrollado en los laboratorios de EIF509. El profesional publica rutinas y el encargado registra el resultado de cada paso; el sistema calcula adherencia a partir de esos registros explícitos [13]. Aunque comparte con Mírame un contexto de apoyos y participación de personas cuidadoras, su unidad de negocio es la ejecución de una rutina, no la selección de un pictograma ni la descripción del rostro.
+
+En el alcance actual de SIRA no se propone utilizar perfiles faciales para calcular adherencia. Ese indicador se obtiene de LOGRADO, CON\_APOYO y NO\_LOGRADO, registrados para cada paso. Un perfil facial no registra si el paso se completó. La incorporación de cámara requeriría además captura, permisos y almacenamiento de medidas, que no forman parte del flujo documentado [13]. Se propone conservar los registros explícitos y las validaciones de cierre de la API.
+
+Si se planteara un registro facial complementario para SIRA, tendría que definirse qué pregunta responde y cómo se evaluaría frente a las anotaciones existentes. Una posible implementación sería un componente voluntario en el navegador, separado del servicio de adherencia. Requeriría un contrato para medidas derivadas, control de acceso, procedencia del dispositivo y retención. Esa extensión no está implementada y no se propone que modifique automáticamente el resultado de pasos o la transacción de cierre.
+
+
+\section{Conclusiones}
+La documentación revisada describe las salidas de Face Mesh y Face Landmarker, y el código de Mírame muestra una integración local de este último. El prototipo asocia medidas faciales con selecciones explícitas y conserva los registros en IndexedDB. Estos hallazgos describen la implementación; no establecen su exactitud con el participante.
+
+La inferencia local elimina la transferencia de fotogramas a un servicio de procesamiento, mientras que la remota desplaza el cómputo y añade transporte y disponibilidad de servidor. No se midieron ambas alternativas bajo las mismas condiciones. Por ello, la propuesta de mantener la ejecución local en Mírame se basa en su flujo existente y en el requisito de reducir esa transferencia, no en una superioridad medida de rendimiento o costo.
+
+Los dos sistemas requieren decisiones diferentes. En Mírame se propone evaluar el análisis facial como registro complementario de las selecciones. En SIRA se conserva el cálculo de adherencia a partir de pasos registrados por el encargado; una categoría facial no sustituye ese dato. Cualquier extensión para añadir contexto necesitaría un objetivo y una evaluación propios.
+
+El artículo no incluye un benchmark entre arquitecturas, una evaluación del clasificador con el participante ni una auditoría de accesibilidad. El trabajo pendiente comprende medir el dispositivo, contrastar categorías con observación independiente y examinar el uso del registro durante la interacción. La evaluación deberá conservar la información sobre ausencia de rostro, escala sustituida y cobertura insuficiente para no tratar esos casos como observaciones de neutralidad.
+
+
+\clearpage
+\IEEEtriggeratref{7}
+\begin{thebibliography}{13}
+\bibitem{ref1} Google AI Edge, «Face landmark detection guide» y «Face landmark detection guide for Web», documentación técnica, actualizaciones del 1 de octubre y 17 de agosto de 2026. [En línea]. Disponible en: \url{https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker} y \url{https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker/web_js}. [Accedido: 5-oct-2026].
+
+\bibitem{ref2} L. F. Barrett, R. Adolphs, S. Marsella, A. M. Martinez y S. D. Pollak, «Emotional Expressions Reconsidered: Challenges to Inferring Emotion From Human Facial Movements», Psychological Science in the Public Interest, vol. 20, n.º 1, pp. 1-68, 2019, doi: \href{https://doi.org/10.1177/1529100619832930}{10.1177/1529100619832930}.
+
+\bibitem{ref3} A. Cerdas Chacón, «Mírame», código fuente y documentación técnica del prototipo, commit 887645104923466fd817a2f255d1acdae9a94191, 2026. Archivos inspeccionados: README.md, js/face.js, js/features.js, js/classifier.js, js/storage.js, js/app.js, sw.js y docs/protocolo-validacion.md. [En línea]. Disponible en: \url{https://github.com/cerdasanthony/mirame-tfg/tree/887645104923466fd817a2f255d1acdae9a94191}. [Inspección local: 5-oct-2026].
+
+\bibitem{ref4} Google AI Edge, «MediaPipe Face Mesh», documentación de la solución anterior, aviso de actualización del 10 de mayo de 2023. [En línea]. Disponible en: \url{https://github.com/google-ai-edge/mediapipe/blob/master/docs/solutions/face_mesh.md}. [Accedido: 5-oct-2026].
+
+\bibitem{ref5} I. Grishchenko et al., «Blendshapes GHUM: Real-time Monocular Facial Blendshape Prediction», arXiv:2309.05782, prepublicación, 2023, doi: \href{https://doi.org/10.48550/arXiv.2309.05782}{10.48550/arXiv.2309.05782}.
+
+\bibitem{ref6} I. Grishchenko, G. Yan, A. Zanfir y E. G. Bazavan, «Mediapipe Blendshape V2», ficha del modelo, Google, 11 de noviembre de 2022. [En línea]. Disponible en: \url{https://storage.googleapis.com/mediapipe-assets/Model%20Card%20Blendshape%20V2.pdf}. [Accedido: 5-oct-2026].
+
+\bibitem{ref7} J. Zhang, W. Sato, N. Kawamura, K. Shimokawa, B. Tang y Y. Nakamura, «Sensing emotional valence and arousal dynamics through automated facial action unit analysis», Scientific Reports, vol. 14, art. 19563, 2024, doi: \href{https://doi.org/10.1038/s41598-024-70563-8}{10.1038/s41598-024-70563-8}.
+
+\bibitem{ref8} W3C, «Media Capture and Streams», Candidate Recommendation Draft, 9 de octubre de 2025. [En línea]. Disponible en: \url{https://www.w3.org/TR/2025/CRD-mediacapture-streams-20251009/}. [Accedido: 5-oct-2026].
+
+\bibitem{ref9} W3C, «Service Workers Nightly», Candidate Recommendation Draft, 17 de septiembre de 2026. [En línea]. Disponible en: \url{https://www.w3.org/TR/2026/CRD-service-workers-20260917/}. [Accedido: 5-oct-2026].
+
+\bibitem{ref10} W3C, «Indexed Database API 3.0», Working Draft, 13 de agosto de 2025. [En línea]. Disponible en: \url{https://www.w3.org/TR/2025/WD-IndexedDB-3-20250813/}. [Accedido: 5-oct-2026].
+
+\bibitem{ref11} P. J. Rousseeuw y C. Croux, «Alternatives to the Median Absolute Deviation», Journal of the American Statistical Association, vol. 88, n.º 424, pp. 1273-1283, 1993, doi: \href{https://doi.org/10.1080/01621459.1993.10476408}{10.1080/01621459.1993.10476408}.
+
+\bibitem{ref12} W3C, «Web Content Accessibility Guidelines (WCAG) 2.2», Recommendation, 12 de diciembre de 2024. [En línea]. Disponible en: \url{https://www.w3.org/TR/2024/REC-WCAG22-20241212/}. [Accedido: 5-oct-2026].
+
+\bibitem{ref13} A. Cerdas Chacón, «SIRA: Sistema de Rutinas y Apoyos», código fuente y documentación del proyecto EIF509, commit 1b72574, 2026. Archivos inspeccionados: README.md, docs/propuesta-dominio.md y docs/lab5-api-rest.md. [En línea]. Disponible en: \url{https://github.com/cerdasanthony/sira-eif509/tree/1b72574}. [Inspección local: 8-oct-2026].
+
+\end{thebibliography}
+\end{document}
