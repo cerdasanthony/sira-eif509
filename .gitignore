@@ -43,6 +43,7 @@ out/
 spa/node_modules/
 spa/dist/
 spa/coverage/
+spa/.vite/
 .env
 .env.*
 !.env.example
