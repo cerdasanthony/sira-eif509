@@ -1,0 +1,4 @@
+<!DOCTYPE html><html lang="es" xmlns:th="http://www.thymeleaf.org"><head th:replace="~{admin/fragments :: head('Nuevo encargado')}"></head><body><header th:replace="~{admin/fragments :: navegacion}"></header><main class="narrow"><a th:href="@{/admin/encargados}">← Encargados</a><h1>Nuevo encargado</h1>
+<form class="panel" th:action="@{/admin/encargados/guardar}" th:object="${form}" method="post"><div th:replace="~{admin/fragments :: errores}"></div>
+<label>Nombre<input th:field="*{nombre}" maxlength="120" required></label><label>Correo electrónico<input type="email" th:field="*{correo}" maxlength="160" required></label>
+<label>Contraseña inicial<input type="password" name="password" autocomplete="new-password" minlength="12" maxlength="72" required></label><p class="hint">Entre 12 y 72 caracteres. Compártala directamente con el encargado.</p><button>Crear encargado</button></form></main></body></html>

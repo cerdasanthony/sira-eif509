@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org"><head th:fragment="head(titulo)">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title th:text="${titulo} + ' · SIRA'">SIRA</title><link rel="stylesheet" th:href="@{/css/admin.css}">
+</head><body>
+<header th:fragment="navegacion"><a class="brand" th:href="@{/admin/participantes}">SIRA <small>Administración</small></a>
+<nav aria-label="Principal"><a th:href="@{/admin/participantes}">Participantes</a><a th:href="@{/admin/encargados}">Encargados</a><a th:href="@{/admin/rutinas}">Rutinas</a>
+<form th:action="@{/admin/logout}" method="post"><button class="secondary">Salir</button></form></nav></header>
+<div th:fragment="avisos" aria-live="polite"><p class="success" th:if="${mensaje}" th:text="${mensaje}"></p><p role="alert" class="error" th:if="${error}" th:text="${error}"></p></div>
+<nav th:fragment="paginacion(ruta)" class="pagination" aria-label="Paginación">
+<a th:if="${!pagina.primera}" th:href="@{${ruta}(page=${pagina.pagina - 1})}">← Anterior</a>
+<span th:text="|Página ${pagina.pagina + 1} de ${T(java.lang.Math).max(1, pagina.totalPaginas)} · ${pagina.totalElementos} registros|"></span>
+<a th:if="${!pagina.ultima}" th:href="@{${ruta}(page=${pagina.pagina + 1})}">Siguiente →</a></nav>
+<div th:fragment="errores" class="error" role="alert" th:if="${#fields.hasAnyErrors()}"><p>Revise los datos del formulario.</p><ul><li th:each="e : ${#fields.allErrors()}" th:text="${e}"></li></ul></div>
+</body></html>

@@ -1,0 +1,71 @@
+# MongoDB se aprovisiona en Atlas. Configure los campos sync:false en Render.
+services:
+  - type: web
+    name: sira-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SIRA_POSTGRES_HOST
+        fromDatabase:
+          name: sira-postgres
+          property: host
+      - key: SIRA_POSTGRES_PORT
+        fromDatabase:
+          name: sira-postgres
+          property: port
+      - key: SIRA_POSTGRES_DB
+        fromDatabase:
+          name: sira-postgres
+          property: database
+      - key: SIRA_POSTGRES_USER
+        fromDatabase:
+          name: sira-postgres
+          property: user
+      - key: SIRA_POSTGRES_PASSWORD
+        fromDatabase:
+          name: sira-postgres
+          property: password
+      - key: SIRA_MONGODB_URI
+        sync: false
+      - key: SIRA_JWT_SECRET
+        sync: false
+      - key: SIRA_CORS_ORIGINS
+        sync: false
+      - key: SIRA_PROFESIONAL_PASSWORD
+        sync: false
+      - key: SIRA_ENCARGADO_PASSWORD
+        sync: false
+  - type: web
+    name: sira-spa
+    runtime: static
+    buildCommand: cd spa && npm ci && npm run build
+    staticPublishPath: ./spa/dist
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: VITE_API_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+
+databases:
+  - name: sira-postgres
+    plan: free
+    region: oregon
+    databaseName: sira
+    user: sira
+    postgresMajorVersion: '16'

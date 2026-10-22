@@ -1,0 +1,6 @@
+<!DOCTYPE html><html lang="es" xmlns:th="http://www.thymeleaf.org"><head th:replace="~{admin/fragments :: head('Ingresar')}"></head><body class="login-page">
+<main class="login-card"><span class="eyebrow">SISTEMA DE RUTINAS Y APOYOS</span><h1>SIRA</h1><h2>Espacio profesional</h2><p>Organice las rutinas y acompañe cada avance.</p>
+<p role="alert" class="error" th:if="${param.error}">No fue posible ingresar. Revise su correo y contraseña.</p><p class="success" th:if="${param.salida}">Sesión cerrada.</p>
+<form th:action="@{/admin/login}" method="post"><label>Correo electrónico<input type="email" name="correo" autocomplete="username" required maxlength="160"></label>
+<label>Contraseña<input type="password" name="password" autocomplete="current-password" required maxlength="72"></label><button>Ingresar</button></form>
+<small>Acceso exclusivo para profesionales.</small></main></body></html>

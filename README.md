@@ -14,6 +14,9 @@ Proyecto del curso EIF509 Desarrollo de Aplicaciones Basadas en Web, NRC 51092, 
 - [Laboratorio 3: ORM, repositorios, consultas y N+1](docs/lab3-persistencia-orm.md)
 - [Laboratorio 4: capa de negocio, transacciones, DTOs y pruebas](docs/lab4-capa-negocio.md)
 - [Laboratorio 5: API REST, JWT, OpenAPI y pruebas](docs/lab5-api-rest.md)
+- [Laboratorio 6: MVC, React y despliegue](docs/lab6-presentacion-despliegue.md)
+- [Diagrama de despliegue](docs/despliegue.md)
+- [Datos que completar para la entrega](docs/entrega-lab6.md)
 - [Coleccion de peticiones REST](docs/sira-api.http)
 - [ADR-001: organización en capas](docs/adr/ADR-001-arquitectura-en-capas.md)
 
@@ -21,7 +24,7 @@ Proyecto del curso EIF509 Desarrollo de Aplicaciones Basadas en Web, NRC 51092, 
 
 Java 21, Spring Boot 3.3.13, Spring Data JPA/MongoDB, Hibernate, Flyway,
 PostgreSQL 16, MongoDB 7, Spring Security JWT, springdoc/Swagger UI, Bean Validation, Testcontainers, Gradle, JUnit 5,
-Mockito, AssertJ y JaCoCo.
+Mockito, AssertJ y JaCoCo. Presentacion MVC con Thymeleaf y SPA con React/Vite.
 
 ## Cómo correrlo
 
@@ -103,3 +106,58 @@ activo. Sin Docker se omiten las pruebas reales; la CI exige que no se omitan.
 ## Integración continua
 
 Cada push a `main` dispara [`.github/workflows/ci.yml`](.github/workflows/ci.yml), que compila y corre las pruebas en una máquina Linux limpia con Java 21. El estado se ve en el badge de arriba.
+
+## Laboratorio 6: ejecutar las dos interfaces
+
+Requisitos adicionales: Node.js 22.12 o posterior y Docker para las bases de datos.
+
+```bash
+docker compose up -d
+./gradlew bootRun --args="--spring.profiles.active=dev"
+```
+
+En otra terminal:
+
+```bash
+cd spa
+npm ci
+npm run dev
+```
+
+Administracion profesional: <http://localhost:8080/admin/login>.
+SPA del encargado: <http://localhost:5173>. Las cuentas locales de demostracion
+son las indicadas arriba. El perfil `prod` rechaza las credenciales de demostracion.
+La sesion MVC requiere CSRF; la SPA envia JWT en Authorization y conserva el token
+solo en memoria. Recargar la SPA requiere volver a ingresar.
+
+## Variables de entorno de produccion
+
+Configure los secretos en el panel de la plataforma. Esta tabla documenta solo
+sus nombres y usos; no incluya sus valores en Git, capturas, logs ni archivos de entrega.
+
+| Variable | Donde se configura | Uso |
+|---|---|---|
+| `SPRING_PROFILES_ACTIVE` | API | Seleccion del perfil de produccion |
+| `PORT` | API, inyectado por el proveedor | Puerto HTTP del contenedor |
+| `SIRA_POSTGRES_HOST` | API, desde PostgreSQL gestionado | Servidor PostgreSQL |
+| `SIRA_POSTGRES_PORT` | API, desde PostgreSQL gestionado | Puerto PostgreSQL |
+| `SIRA_POSTGRES_DB` | API, desde PostgreSQL gestionado | Nombre de la base |
+| `SIRA_POSTGRES_USER` | API, desde PostgreSQL gestionado | Cuenta PostgreSQL |
+| `SIRA_POSTGRES_PASSWORD` | API, secreto | Password PostgreSQL |
+| `SIRA_POSTGRES_URL` | API, opcional | URL JDBC completa que sustituye host, puerto y base; debe usar TLS |
+| `SIRA_MONGODB_URI` | API, secreto | Cadena Atlas con base, usuario y TLS |
+| `SIRA_JWT_SECRET` | API, secreto | Clave aleatoria Base64 de al menos 32 bytes, exclusiva de produccion |
+| `SIRA_CORS_ORIGINS` | API | Origen HTTPS real de la SPA, sin barra final; varios separados por coma |
+| `SIRA_PROFESIONAL_PASSWORD` | API, secreto | Password inicial del profesional de prueba |
+| `SIRA_ENCARGADO_PASSWORD` | API, secreto | Password inicial del encargado de prueba |
+| `VITE_API_URL` | SPA, durante el build | Origen HTTPS publico de la API, sin ruta |
+
+Las variables `VITE_*` son publicas en el JavaScript del navegador. Solo
+`VITE_API_URL` se utiliza en la SPA. Las dos passwords iniciales se aplican una vez,
+cuando las cuentas de ejemplo aun no tienen hash; cambiar estas variables despues
+no cambia passwords ya guardadas. El encargado puede cambiar su password con
+`PUT /api/v1/usuarios/me`; para el profesional se usa el mismo endpoint.
+
+El [procedimiento de despliegue](docs/lab6-presentacion-despliegue.md#despliegue-en-render-y-atlas)
+utiliza `Dockerfile` y `render.yaml`. El despliegue publico queda pendiente hasta
+configurar las cuentas del proveedor, sus secretos y las URLs reales.

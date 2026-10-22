@@ -133,3 +133,15 @@ Specifications. `ContratoApi` contiene los DTOs v1 y metadatos de pagina;
 las entidades se convierten dentro de la transaccion, antes de salir del servicio.
 La autenticacion y la configuracion son transversales: negocio usa Spring Security
 para obtener el actor, sin depender de servlet, controladores ni semantica HTTP.
+
+## Evolucion en el Laboratorio 6
+
+`presentation/mvc` agrega los controladores y formularios Thymeleaf de administracion.
+Usa los mismos servicios API de negocio. Una cadena de seguridad prioritaria
+protege `/admin/**` con sesion y CSRF; la cadena REST conserva JWT y no carga la
+sesion MVC. Ambas identidades tienen el id del usuario como nombre y su rol, por
+lo que `AccesoRecursosService` aplica el mismo alcance en las dos interfaces.
+
+`spa/` contiene React/Vite, con un cliente HTTP centralizado y JWT en memoria.
+El proceso de cierre sigue siendo una transaccion en la capa de negocio.
+La [topologia de despliegue](despliegue.md) separa la SPA, API/MVC y bases gestionadas.

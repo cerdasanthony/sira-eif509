@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestControllerAdvice
+@org.springframework.core.annotation.Order(org.springframework.core.Ordered.LOWEST_PRECEDENCE)
 public class ManejadorErroresApi {
     private static final Logger LOG = LoggerFactory.getLogger(ManejadorErroresApi.class);
     private final ProblemasHttp problemas;

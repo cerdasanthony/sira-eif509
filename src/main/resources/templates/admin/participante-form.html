@@ -1,0 +1,6 @@
+<!DOCTYPE html><html lang="es" xmlns:th="http://www.thymeleaf.org"><head th:replace="~{admin/fragments :: head('Participante')}"></head><body><header th:replace="~{admin/fragments :: navegacion}"></header><main class="narrow">
+<a th:href="@{/admin/participantes}">← Participantes</a><h1 th:text="${id == null ? 'Nuevo participante' : 'Editar participante'}"></h1>
+<form class="panel" th:action="@{/admin/participantes/guardar(id=${id})}" th:object="${form}" method="post"><div th:replace="~{admin/fragments :: errores}"></div>
+<label>Nombre<input th:field="*{nombre}" maxlength="120" required></label><label>Fecha de nacimiento<input type="date" th:field="*{fechaNacimiento}" required></label>
+<label>ID del encargado<input type="number" th:field="*{encargadoId}" min="1" required></label><p class="hint">Consulte el ID en <a th:href="@{/admin/encargados}">Encargados</a>. Debe corresponder a una cuenta activa.</p>
+<label class="check"><input type="checkbox" th:field="*{activo}"> Participante activo</label><button>Guardar participante</button></form></main></body></html>

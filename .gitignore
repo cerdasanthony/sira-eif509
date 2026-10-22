@@ -38,3 +38,13 @@ out/
 
 ### Herramientas locales ###
 .claude/
+
+### SPA y secretos locales ###
+spa/node_modules/
+spa/dist/
+spa/coverage/
+.env
+.env.*
+!.env.example
+*.local
+tmp/

@@ -5,6 +5,7 @@ import cr.ac.una.sira.presentation.ProblemasHttp;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -20,6 +21,12 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Arrays;
+import java.util.List;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.web.cors.*;
 
 @Configuration
 public class SeguridadConfig {
@@ -55,6 +62,45 @@ public class SeguridadConfig {
     }
 
     @Bean
+    @Order(1)
+    SecurityFilterChain administracion(HttpSecurity http, UserDetailsService cuentas,
+                                      PasswordEncoder passwords) throws Exception {
+        var provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(cuentas);
+        provider.setPasswordEncoder(passwords);
+        return http.securityMatcher("/admin/**", "/css/**")
+                .authenticationProvider(provider)
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/admin/login", "/css/**").permitAll()
+                        .anyRequest().hasRole("PROFESIONAL"))
+                .formLogin(form -> form.loginPage("/admin/login")
+                        .loginProcessingUrl("/admin/login").usernameParameter("correo")
+                        .defaultSuccessUrl("/admin/participantes", true)
+                        .failureUrl("/admin/login?error").permitAll())
+                .logout(logout -> logout.logoutUrl("/admin/logout")
+                        .logoutSuccessUrl("/admin/login?salida"))
+                .csrf(Customizer.withDefaults())
+                .build();
+    }
+
+    @Bean
+    CorsConfigurationSource corsConfigurationSource(@Value("${sira.cors.origins:}") String origins) {
+        var cors = new CorsConfiguration();
+        cors.setAllowedOrigins(Arrays.stream(origins.split(",")).map(String::trim)
+                .filter(s -> !s.isEmpty()).toList());
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        cors.setExposedHeaders(List.of("Location"));
+        cors.setAllowCredentials(false);
+        cors.setMaxAge(3600L);
+        var source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", cors);
+        source.registerCorsConfiguration("/auth/**", cors);
+        return source;
+    }
+
+    @Bean
+    @Order(2)
     SecurityFilterChain seguridad(HttpSecurity http, ProblemasHttp problemas) throws Exception {
         var authorities = new JwtGrantedAuthoritiesConverter();
         authorities.setAuthoritiesClaimName("roles");
@@ -62,10 +108,11 @@ public class SeguridadConfig {
         var converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(authorities);
         return http.csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(cache -> cache.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/login", "/swagger-ui.html", "/swagger-ui/**",
+                        .requestMatchers("/", "/error", "/auth/login", "/swagger-ui.html", "/swagger-ui/**",
                                 "/v3/api-docs/**", "/v3/api-docs.yaml", "/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/**").hasAnyRole("PROFESIONAL", "ENCARGADO")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/usuarios/me").hasAnyRole("PROFESIONAL", "ENCARGADO")
