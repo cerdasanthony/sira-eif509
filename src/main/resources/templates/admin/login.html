@@ -1,6 +1,7 @@
 <!DOCTYPE html><html lang="es" xmlns:th="http://www.thymeleaf.org"><head th:replace="~{admin/fragments :: head('Ingresar')}"></head><body class="login-page">
-<main class="login-card"><span class="eyebrow">SISTEMA DE RUTINAS Y APOYOS</span><h1>SIRA</h1><h2>Espacio profesional</h2><p>Organice las rutinas y acompañe cada avance.</p>
+<aside class="login-story"><a class="brand" th:href="@{/admin/login}"><span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span>SIRA <small>Rutinas<br>y apoyos</small></a><div><span class="eyebrow">PLANIFICAR · ACOMPAÑAR · DAR SEGUIMIENTO</span><h1>El cuidado<br>también se<br><em>organiza.</em></h1><p>Participantes, redes de apoyo y rutinas.<br>Un espacio para el trabajo de cada día.</p></div><small>Sistema de Rutinas y Apoyos</small></aside>
+<main class="login-card"><span class="eyebrow">ACCESO PROFESIONAL</span><h2>Su espacio de trabajo.</h2><p>Ingrese para gestionar participantes y publicar rutinas.</p>
 <p role="alert" class="error" th:if="${param.error}">No fue posible ingresar. Revise su correo y contraseña.</p><p class="success" th:if="${param.salida}">Sesión cerrada.</p>
 <form th:action="@{/admin/login}" method="post"><label>Correo electrónico<input type="email" name="correo" autocomplete="username" required maxlength="160"></label>
 <label>Contraseña<input type="password" name="password" autocomplete="current-password" required maxlength="72"></label><button>Ingresar</button></form>
-<small>Acceso exclusivo para profesionales.</small></main></body></html>
+<div class="login-footnote"><strong>¿Necesita una cuenta?</strong><p>Contacte a la persona que administra SIRA.</p></div></main></body></html>

@@ -29,7 +29,7 @@ it('inicia sesión, registra todos los pasos y muestra adherencia e historial', 
   await user.type(screen.getByLabelText('Correo electrónico'), 'laura@example.org');
   await user.type(screen.getByLabelText('Contraseña'), 'PasswordPrueba2026!');
   await user.click(screen.getByRole('button', { name:'Ingresar a mi espacio' }));
-  await user.click(await screen.findByRole('button', { name:'Ver pasos y registrar' }));
+  await user.click(await screen.findByRole('button', { name:/Ver pasos y registrar/ }));
   await screen.findByRole('group', { name:'1 Lavarse las manos' });
   await user.type(screen.getByLabelText('Hora de finalización'), '07:10');
   await user.click(screen.getByLabelText('Logrado', { exact:true }));
@@ -47,12 +47,12 @@ it('un error al guardar conserva los resultados y una sesión vencida vuelve al 
   const user = userEvent.setup(); render(<App/>);
   await user.type(screen.getByLabelText('Correo electrónico'), 'laura@example.org'); await user.type(screen.getByLabelText('Contraseña'), 'PasswordPrueba2026!');
   await user.click(screen.getByRole('button', { name:'Ingresar a mi espacio' }));
-  await user.click(await screen.findByRole('button', { name:'Ver pasos y registrar' }));
+  await user.click(await screen.findByRole('button', { name:/Ver pasos y registrar/ }));
   await user.type(await screen.findByLabelText('Hora de finalización'), '07:10');
   await user.click(screen.getByLabelText('Con apoyo', { exact:true }));
   await user.click(screen.getByRole('button', { name:'Guardar registro' }));
   expect((await screen.findByRole('alert')).textContent).toContain('Ya existe');
   expect(screen.getByLabelText('Con apoyo', { exact:true }).checked).toBe(true);
   const expired = setSession.mock.calls.find(([token]) => token === 'jwt')[1];
-  expired(); await waitFor(() => expect(screen.getByRole('heading', { name:'Qué bueno tenerle aquí.' })).toBeTruthy());
+  expired(); await waitFor(() => expect(screen.getByRole('heading', { name:'Bienvenido de vuelta.' })).toBeTruthy());
 });

@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org"><head th:fragment="head(titulo)">
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title th:text="${titulo} + ' · SIRA'">SIRA</title><link rel="stylesheet" th:href="@{/css/admin.css}">
+<title th:text="${titulo} + ' · SIRA'">SIRA</title><meta name="theme-color" content="#a8432d"><link rel="icon" type="image/svg+xml" th:href="@{/css/favicon.svg}"><link rel="stylesheet" th:href="@{/css/admin.css}">
 </head><body>
-<header th:fragment="navegacion"><a class="brand" th:href="@{/admin/participantes}">SIRA <small>Administración</small></a>
-<nav aria-label="Principal"><a th:href="@{/admin/participantes}">Participantes</a><a th:href="@{/admin/encargados}">Encargados</a><a th:href="@{/admin/rutinas}">Rutinas</a>
-<form th:action="@{/admin/logout}" method="post"><button class="secondary">Salir</button></form></nav></header>
+<header th:fragment="navegacion(seccion)"><a class="skip-link" href="#contenido">Ir al contenido</a><a class="brand" th:href="@{/admin/participantes}"><span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span>SIRA <small>Espacio<br>profesional</small></a>
+<nav aria-label="Principal"><a th:href="@{/admin/participantes}" th:attr="aria-current=${seccion == 'participantes' ? 'page' : null}"><span>01</span> Participantes</a><a th:href="@{/admin/encargados}" th:attr="aria-current=${seccion == 'encargados' ? 'page' : null}"><span>02</span> Encargados</a><a th:href="@{/admin/rutinas}" th:attr="aria-current=${seccion == 'rutinas' ? 'page' : null}"><span>03</span> Rutinas</a>
+<form th:action="@{/admin/logout}" method="post"><button class="secondary">Cerrar sesión</button></form></nav></header>
 <div th:fragment="avisos" aria-live="polite"><p class="success" th:if="${mensaje}" th:text="${mensaje}"></p><p role="alert" class="error" th:if="${error}" th:text="${error}"></p></div>
 <nav th:fragment="paginacion(ruta)" class="pagination" aria-label="Paginación">
 <a th:if="${!pagina.primera}" th:href="@{${ruta}(page=${pagina.pagina - 1})}">← Anterior</a>
