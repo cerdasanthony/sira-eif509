@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments :: head('Acceso no disponible')}"></head>
+<body>
+<main class="narrow">
+  <a class="brand" th:href="@{/admin/login}"><span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span>SIRA</a>
+  <section class="panel">
+    <span class="eyebrow">ACCESO PROFESIONAL · 403</span>
+    <h1 th:text="${formularioVencido ? 'Vuelva a abrir el formulario.' : 'Este espacio es para profesionales.'}">Acceso no disponible</h1>
+    <p th:if="${formularioVencido}">No se pudo validar la sesión del formulario y no se guardó la solicitud. Vuelva a ingresar y abra el formulario de nuevo antes de enviarlo.</p>
+    <p th:unless="${formularioVencido}">Su cuenta no tiene permiso para abrir esta sección. Si es encargado, consulte sus rutinas desde el portal de SIRA. Si es profesional, ingrese con su cuenta profesional.</p>
+    <div class="actions recovery-actions">
+      <a class="button" th:href="${portalUrl}" th:unless="${formularioVencido}">Ir a mis rutinas</a>
+      <a class="secondary button" th:href="@{/admin/login}">Volver al acceso profesional</a>
+      <form th:action="@{/admin/logout}" method="post"><button class="secondary">Cerrar sesión actual</button></form>
+    </div>
+  </section>
+</main>
+</body>
+</html>

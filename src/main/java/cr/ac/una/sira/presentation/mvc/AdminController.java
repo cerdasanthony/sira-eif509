@@ -4,9 +4,14 @@ import cr.ac.una.sira.business.*;
 import cr.ac.una.sira.business.dto.ContratoApi.*;
 import cr.ac.una.sira.business.exception.*;
 import cr.ac.una.sira.data.RolUsuario;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.web.WebAttributes;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -20,12 +25,18 @@ public class AdminController {
     private final ParticipanteApiService participantes;
     private final UsuarioApiService usuarios;
     private final RutinaApiService rutinas;
+    private final String portalUrl;
 
-    public AdminController(ParticipanteApiService participantes, UsuarioApiService usuarios, RutinaApiService rutinas) {
+    public AdminController(ParticipanteApiService participantes, UsuarioApiService usuarios, RutinaApiService rutinas,
+            @Value("${sira.portal-url}") String portalUrl) {
         this.participantes = participantes;
         this.usuarios = usuarios;
         this.rutinas = rutinas;
+        this.portalUrl = portalUrl;
     }
+
+    @ModelAttribute("portalUrl")
+    public String portalUrl() { return portalUrl; }
 
     @GetMapping("/")
     public String inicio() { return "redirect:/admin/login"; }
@@ -33,6 +44,14 @@ public class AdminController {
     public String admin() { return "redirect:/admin/participantes"; }
     @GetMapping("/admin/login")
     public String login() { return "admin/login"; }
+
+    @RequestMapping("/admin/acceso-denegado")
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public String accesoDenegado(HttpServletRequest request, Model model) {
+        boolean formularioVencido = request.getAttribute(WebAttributes.ACCESS_DENIED_403) instanceof CsrfException;
+        model.addAttribute("formularioVencido", formularioVencido);
+        return "admin/acceso-denegado";
+    }
 
     private Pageable pagina(int page) {
         return PageRequest.of(Math.max(0, page), 10, Sort.by("id"));

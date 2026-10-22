@@ -43,6 +43,8 @@ tbody tr:hover { background: #f4f4ed; }
 td a { font-size: .8rem; font-weight: 600; }
 .badge { display: inline-block; font: .61rem var(--mono); color: #3e5d42; background: #e9eee2; border-radius: 2px; padding: .4rem .55rem; }
 .actions { gap: 1rem; }
+.recovery-actions { flex-wrap: wrap; margin: 1.8rem 0; }
+.recovery-hint { margin: 1.5rem 0 0; }
 .pagination { justify-content: flex-end; flex-wrap: wrap; gap: 1.3rem; margin-top: 1.5rem; font-size: .74rem; color: #62685f; }
 .pagination a { color: var(--accent); }
 .panel { background: #fffefb; padding: 2.2rem; border: 1px solid #cdd1c3; border-top: 3px solid var(--ink); border-radius: 3px; margin-top: 2rem; }

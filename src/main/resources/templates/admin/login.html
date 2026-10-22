@@ -4,4 +4,4 @@
 <p role="alert" class="error" th:if="${param.error}">No fue posible ingresar. Revise su correo y contraseña.</p><p class="success" th:if="${param.salida}">Sesión cerrada.</p>
 <form th:action="@{/admin/login}" method="post"><label>Correo electrónico<input type="email" name="correo" autocomplete="username" required maxlength="160"></label>
 <label>Contraseña<input type="password" name="password" autocomplete="current-password" required maxlength="72"></label><button>Ingresar</button></form>
-<div class="login-footnote"><strong>¿Necesita una cuenta?</strong><p>Contacte a la persona que administra SIRA.</p></div></main></body></html>
+<div class="login-footnote"><strong>¿Es encargado?</strong><p><a th:href="${portalUrl}">Ingrese aquí para consultar sus rutinas.</a></p><p>Para solicitar una cuenta, contacte a la persona que administra SIRA.</p></div></main></body></html>

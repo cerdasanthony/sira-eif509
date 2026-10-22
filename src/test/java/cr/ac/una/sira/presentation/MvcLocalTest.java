@@ -51,7 +51,8 @@ class MvcLocalTest {
         mvc.perform(get("/admin/login")).andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"_csrf\"")));
         mvc.perform(post("/admin/login").param("correo", "mariana.vargas@sira.local")
-                .param("password", "ClaveDePrueba2026!" )).andExpect(status().isForbidden());
+                .param("password", "ClaveDePrueba2026!" )).andExpect(status().isForbidden())
+                .andExpect(forwardedUrl("/admin/acceso-denegado"));
         var session = ingresar("mariana.vargas@sira.local");
         mvc.perform(get("/admin/participantes/nuevo").session(session)).andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"_csrf\"")));
@@ -71,7 +72,21 @@ class MvcLocalTest {
         mvc.perform(get("/api/v1/participantes").session(session)).andExpect(status().isUnauthorized());
         mvc.perform(get("/admin/participantes/2/editar").session(session)).andExpect(status().isForbidden());
         mvc.perform(get("/admin/participantes").session(ingresar("laura.mendez@sira.local")))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden()).andExpect(forwardedUrl("/admin/acceso-denegado"));
+    }
+
+    @Test
+    void accesoDenegadoExplicaElRolYPermiteRecuperarUnFormularioVencido() throws Exception {
+        mvc.perform(get("/admin/acceso-denegado"))
+                .andExpect(status().isForbidden()).andExpect(view().name("admin/acceso-denegado"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Este espacio es para profesionales.")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Mateo"))));
+        mvc.perform(post("/admin/acceso-denegado").with(csrf())
+                .requestAttr(org.springframework.security.web.WebAttributes.ACCESS_DENIED_403,
+                        new org.springframework.security.web.csrf.MissingCsrfTokenException(null)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Vuelva a abrir el formulario.")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("no se guardó la solicitud")));
     }
 
     @Test

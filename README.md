@@ -148,6 +148,7 @@ sus nombres y usos; no incluya sus valores en Git, capturas, logs ni archivos de
 | `SIRA_MONGODB_URI` | API, secreto | Cadena Atlas con base, usuario y TLS |
 | `SIRA_JWT_SECRET` | API, secreto | Clave aleatoria Base64 de al menos 32 bytes, exclusiva de produccion |
 | `SIRA_CORS_ORIGINS` | API | Origen HTTPS real de la SPA, sin barra final; varios separados por coma |
+| `SIRA_PORTAL_URL` | API, opcional | Enlace al portal de encargados en login y errores MVC; por defecto localhost:5173 en desarrollo y https://sira-spa.onrender.com en produccion |
 | `SIRA_PROFESIONAL_PASSWORD` | API, secreto | Password inicial del profesional de prueba |
 | `SIRA_ENCARGADO_PASSWORD` | API, secreto | Password inicial del encargado de prueba |
 | `VITE_API_URL` | SPA, durante el build | Origen HTTPS publico de la API, sin ruta |

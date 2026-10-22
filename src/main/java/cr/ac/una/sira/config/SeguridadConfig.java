@@ -71,7 +71,7 @@ public class SeguridadConfig {
         return http.securityMatcher("/admin/**", "/css/**")
                 .authenticationProvider(provider)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/admin/login", "/css/**").permitAll()
+                        .requestMatchers("/admin/login", "/admin/acceso-denegado", "/css/**").permitAll()
                         .anyRequest().hasRole("PROFESIONAL"))
                 .formLogin(form -> form.loginPage("/admin/login")
                         .loginProcessingUrl("/admin/login").usernameParameter("correo")
@@ -79,6 +79,7 @@ public class SeguridadConfig {
                         .failureUrl("/admin/login?error").permitAll())
                 .logout(logout -> logout.logoutUrl("/admin/logout")
                         .logoutSuccessUrl("/admin/login?salida"))
+                .exceptionHandling(errors -> errors.accessDeniedPage("/admin/acceso-denegado"))
                 .csrf(Customizer.withDefaults())
                 .build();
     }
