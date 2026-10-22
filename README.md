@@ -159,5 +159,15 @@ no cambia passwords ya guardadas. El encargado puede cambiar su password con
 `PUT /api/v1/usuarios/me`; para el profesional se usa el mismo endpoint.
 
 El [procedimiento de despliegue](docs/lab6-presentacion-despliegue.md#despliegue-en-render-y-atlas)
-utiliza `Dockerfile` y `render.yaml`. El despliegue publico queda pendiente hasta
-configurar las cuentas del proveedor, sus secretos y las URLs reales.
+utiliza `Dockerfile` y `render.yaml`. El sistema se publico y verifico el 22 de
+octubre de 2026:
+
+- SPA: <https://sira-spa.onrender.com>
+- API y salud: <https://sira-api-wzo1.onrender.com/actuator/health>
+- Administracion: <https://sira-api-wzo1.onrender.com/admin/login>
+- Swagger UI: <https://sira-api-wzo1.onrender.com/swagger-ui.html>
+
+Las passwords de prueba de produccion se consultan en las variables privadas
+del servicio API de Render y se entregan al docente fuera de Git. PostgreSQL
+gratuito vence el 21 de noviembre de 2026. Los servicios gratuitos pueden tardar
+en despertar despues de un periodo de inactividad.

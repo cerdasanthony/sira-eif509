@@ -42,7 +42,9 @@ sesion MVC no autentica endpoints API y la SPA no envia cookies al backend.
 
 ## Despliegue en Render y Atlas
 
-Estado: configuracion preparada; no hay URLs publicas verificadas en esta entrega local.
+Estado: desplegado en Render y Atlas y verificado el 22 de octubre de 2026.
+Las URLs y la evidencia de las comprobaciones estan en
+[entrega-lab6.md](entrega-lab6.md).
 
 1. Subir los cambios revisados al repositorio del proyecto.
 2. En Atlas, crear un cluster y un usuario de base de datos con permisos sobre la
@@ -116,7 +118,13 @@ solo en la terminal de esa ejecucion.
   crear rutina de dos pasos, publicar desde MVC, ingresar como encargado en React,
   cerrar con un paso LOGRADO y otro CON_APOYO y consultar el 75 % en el historial.
 - La prueba con H2 no acredita el despliegue ni sustituye las pruebas con
-  PostgreSQL/MongoDB gestionados. No se han verificado URLs publicas.
+  PostgreSQL/MongoDB gestionados.
+- La CI de GitHub aprobo tambien las pruebas reales PostgreSQL/Testcontainers:
+  [ejecucion del commit de implementacion](https://github.com/cerdasanthony/sira-eif509/actions/runs/39842856495).
+- La comprobacion publica posterior verifico health `UP`, acceso de ambos roles,
+  Swagger UI y un cierre completo desde React con 87.5 % de adherencia guardado
+  y consultado desde el historial. El backend usa PostgreSQL gestionado en Render
+  y el cluster `sira` de Atlas; no usa H2 en produccion.
 
 ## Fuentes de configuracion
 
