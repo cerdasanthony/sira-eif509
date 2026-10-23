@@ -12,30 +12,48 @@ export class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status; }
 }
 
-export async function request(path, { body, ...options } = {}) {
-  let response;
+export async function request(path, { body, signal, ...options } = {}) {
+  const controller = new AbortController();
+  let timedOut = false;
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  else signal?.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 120000);
   try {
-    response = await fetch(`${base}${path}`, {
+    const response = await fetch(`${base}${path}`, {
       ...options,
+      signal: controller.signal,
       credentials: 'omit',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
-  } catch (error) {
-    if (error.name === 'AbortError') throw error;
-    throw new ApiError('No se pudo conectar. Revise su conexión e intente de nuevo.', 0);
-  }
-  const data = response.status === 204 ? null : await response.json().catch(() => null);
-  if (!response.ok) {
-    if (response.status === 401 && path !== '/auth/login') {
-      token = null;
-      onUnauthorized();
+    const data = response.status === 204 ? null : await response.json().catch(error => {
+      if (error.name === 'AbortError') throw error;
+      return null;
+    });
+    if (!response.ok) {
+      if (response.status === 401 && path !== '/auth/login') {
+        token = null;
+        onUnauthorized();
+      }
+      const fields = data?.errores?.map(e => `${e.campo}: ${e.mensaje}`).join('. ');
+      throw new ApiError(fields || data?.detail || 'No fue posible completar la solicitud.', response.status);
     }
-    const fields = data?.errores?.map(e => `${e.campo}: ${e.mensaje}`).join('. ');
-    throw new ApiError(fields || data?.detail || 'No fue posible completar la solicitud.', response.status);
+    return data;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (!timedOut && error.name === 'AbortError') throw error;
+    if (path === '/api/v1/ejecuciones/cierres') {
+      throw new ApiError('No se pudo confirmar el guardado. Revise Mis registros antes de intentarlo otra vez.', 0);
+    }
+    throw new ApiError(timedOut
+      ? 'El servidor está tardando demasiado. Inténtelo de nuevo en unos instantes.'
+      : 'No se pudo conectar. Revise su conexión e intente de nuevo.', 0);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
   }
-  return data;
 }
 
 export const api = {

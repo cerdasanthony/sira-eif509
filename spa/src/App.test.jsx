@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App, { RoutineList } from './App';
 import { api, setSession } from './api';
@@ -9,6 +9,23 @@ afterEach(cleanup);
 beforeEach(() => vi.resetAllMocks());
 const routine = { id:1, nombre:'Preparar la mañana', participanteId:1, horaInicio:'07:00:00', vigenciaDesde:'2026-01-01', diasSemana:[1,2,3,4,5,6,7], pasos:[{ id:11, descripcion:'Lavarse las manos', duracionEstimadaMin:3 }] };
 const page = (contenido = [routine], extra = {}) => ({ contenido, totalElementos:contenido.length, totalPaginas:1, primera:true, ultima:true, ...extra });
+
+it('hace visible la espera del login, bloquea reenvíos y permite corregir un error', async () => {
+  let rejectLogin;
+  api.login.mockReturnValue(new Promise((_resolve, reject) => { rejectLogin = reject; }));
+  const user = userEvent.setup(); render(<App/>);
+  await user.type(screen.getByLabelText('Correo electrónico'), 'laura@example.org');
+  await user.type(screen.getByLabelText('Contraseña'), 'PasswordPrueba2026!');
+  await user.click(screen.getByRole('button', { name:'Ingresar a mi espacio' }));
+  expect(screen.getByRole('status').textContent).toContain('Conectando con SIRA');
+  expect(screen.getByRole('button', { name:'Ingresando…' }).disabled).toBe(true);
+  await user.click(screen.getByRole('button', { name:'Ingresando…' }));
+  expect(api.login).toHaveBeenCalledOnce();
+  await act(async () => rejectLogin(new Error('Revise sus credenciales')));
+  expect(screen.getByRole('alert').textContent).toContain('Revise sus credenciales');
+  expect(screen.getByRole('button', { name:'Ingresar a mi espacio' }).disabled).toBe(false);
+  expect(screen.getByLabelText('Correo electrónico').value).toBe('laura@example.org');
+});
 
 it('presenta carga, error, reintento, datos y paginación', async () => {
   api.rutinas.mockRejectedValueOnce(new Error('No hay conexión')).mockResolvedValueOnce(page([routine], { totalPaginas:2, ultima:false })).mockResolvedValueOnce(page([], { primera:false }));
@@ -24,7 +41,8 @@ it('presenta carga, error, reintento, datos y paginación', async () => {
 it('inicia sesión, registra todos los pasos y muestra adherencia e historial', async () => {
   api.login.mockResolvedValue({ accessToken:'jwt' }); api.perfil.mockResolvedValue({ nombre:'Laura Méndez', rol:'ENCARGADO' });
   api.rutinas.mockResolvedValue(page()); api.rutina.mockResolvedValue(routine);
-  api.cerrar.mockResolvedValue({ ejecucionId:5, adherencia:100 }); api.historial.mockResolvedValue(page([]));
+  let resolveSave;
+  api.cerrar.mockReturnValue(new Promise(resolve => { resolveSave = resolve; })); api.historial.mockResolvedValue(page([]));
   const user = userEvent.setup(); render(<App/>);
   await user.type(screen.getByLabelText('Correo electrónico'), 'laura@example.org');
   await user.type(screen.getByLabelText('Contraseña'), 'PasswordPrueba2026!');
@@ -34,6 +52,10 @@ it('inicia sesión, registra todos los pasos y muestra adherencia e historial', 
   await user.type(screen.getByLabelText('Hora de finalización'), '07:10');
   await user.click(screen.getByLabelText('Logrado', { exact:true }));
   await user.click(screen.getByRole('button', { name:'Guardar registro' }));
+  expect(screen.getByRole('status').textContent).toContain('Guardando los resultados');
+  expect(screen.getByRole('button', { name:'Mis registros 02' }).disabled).toBe(true);
+  expect(screen.getByRole('button', { name:'Guardando…' }).disabled).toBe(true);
+  await act(async () => resolveSave({ ejecucionId:5, adherencia:100 }));
   await screen.findByText('Registro guardado');
   expect(api.cerrar).toHaveBeenCalledOnce();
   expect(api.cerrar).toHaveBeenCalledWith(expect.objectContaining({ rutinaId:1, horaInicio:'07:00', horaFin:'07:10', resultados:[{ pasoRutinaId:11, resultado:'LOGRADO', observacionCorta:null }] }));

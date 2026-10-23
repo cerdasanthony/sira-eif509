@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org"><head th:fragment="head(titulo)">
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<script defer th:src="@{/css/admin-ui.js}"></script>
 <title th:text="${titulo} + ' · SIRA'">SIRA</title><meta name="theme-color" content="#a8432d"><link rel="icon" type="image/svg+xml" th:href="@{/css/favicon.svg}"><link rel="stylesheet" th:href="@{/css/admin.css}">
 </head><body>
 <header th:fragment="navegacion(seccion)"><a class="skip-link" href="#contenido">Ir al contenido</a><a class="brand" th:href="@{/admin/participantes}"><span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span>SIRA <small>Espacio<br>profesional</small></a>

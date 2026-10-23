@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, setSession } from './api';
+import { ConnectionStatus, InstallApp, PendingStatus } from './Feedback';
 
 function Icon({ name = 'grid', size = 22 }) {
   const paths = {
@@ -21,7 +22,7 @@ function formatDate(value) {
 }
 
 function ErrorMessage({ message }) { return message ? <p className="error" role="alert">{message}</p> : null; }
-function Loading() { return <div className="state" role="status"><span className="spinner" /> Cargando su espacio…</div>; }
+function Loading({ message = "Cargando sus rutinas…" }) { return <PendingStatus className="state loading-state" message={message}/>; }
 function Pager({ data, page, onChange }) {
   return <nav className="pager" aria-label="Paginación"><button className="secondary" disabled={data.primera} onClick={() => onChange(page - 1)}>← Anterior</button><span>Página {page + 1} de {Math.max(data.totalPaginas, 1)}</span><button className="secondary" disabled={data.ultima} onClick={() => onChange(page + 1)}>Siguiente →</button></nav>;
 }
@@ -29,14 +30,32 @@ function Pager({ data, page, onChange }) {
 function Login({ onLogin, notice }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
   async function submit(event) {
-    event.preventDefault(); setBusy(true); setError('');
+    event.preventDefault();
+    if (submitting.current) return;
     const form = new FormData(event.currentTarget);
+    submitting.current = true; setBusy(true); setError('');
     try { await onLogin({ correo: form.get('correo'), password: form.get('password') }); }
     catch (e) { setError(e.message); }
-    finally { setBusy(false); }
+    finally { submitting.current = false; setBusy(false); }
   }
-  return <main className="login"><section className="login-story"><Brand/><div className="login-editorial"><span className="eyebrow">LA CONSTANCIA SE CONSTRUYE EN CASA</span><h1>Un día.<br/>Una rutina.<br/><em>A su ritmo.</em></h1><p>Las rutinas, los apoyos y lo que sucede entre ambos. Todo en un mismo lugar.</p><ol className="login-index"><li><span>01</span> Consulte la rutina</li><li><span>02</span> Registre cada paso</li><li><span>03</span> Comparta el resultado</li></ol></div><small>Sistema de Rutinas y Apoyos <span>·</span> SIRA</small></section><section className="login-form"><div className="form-inner"><span className="eyebrow">ACCESO A SU CUENTA</span><h2>Bienvenido de vuelta.</h2><p>Ingrese para consultar sus rutinas y registrar los resultados.</p>{notice && <p className="notice" role="status">{notice}</p>}<ErrorMessage message={error}/><form onSubmit={submit}><label>Correo electrónico<input name="correo" type="email" autoComplete="username" placeholder="nombre@correo.com" maxLength="160" required/></label><label>Contraseña<input name="password" type="password" autoComplete="current-password" placeholder="Su contraseña" maxLength="72" required/></label><button disabled={busy}>{busy ? 'Ingresando…' : 'Ingresar a mi espacio'} <Icon name="arrow" size={18}/></button></form><div className="login-footnote"><span>¿Es su primera visita?</span><p>Solicite su cuenta al profesional responsable.</p></div></div><small className="login-form-caption">El seguimiento empieza con un registro.</small></section></main>;
+  return <main className="login">
+    <section className="login-story"><Brand/><div className="login-editorial"><span className="eyebrow">LA CONSTANCIA SE CONSTRUYE EN CASA</span><h1>Un día.<br/>Una rutina.<br/><em>A su ritmo.</em></h1><p>Las rutinas, los apoyos y lo que sucede entre ambos. Todo en un mismo lugar.</p><ol className="login-index"><li><span>01</span> Consulte la rutina</li><li><span>02</span> Registre cada paso</li><li><span>03</span> Comparta el resultado</li></ol></div><small>Sistema de Rutinas y Apoyos <span>·</span> SIRA</small></section>
+    <section className="login-form"><div className="form-inner">
+      <span className="eyebrow">ACCESO A SU CUENTA</span><h2>Bienvenido de vuelta.</h2><p>Ingrese para consultar sus rutinas y registrar los resultados.</p>
+      {notice && <p className="notice" role="status">{notice}</p>}<ErrorMessage message={error}/>
+      <form onSubmit={submit} aria-busy={busy}>
+        <fieldset className="form-fields" disabled={busy}>
+          <label>Correo electrónico<input name="correo" type="email" autoComplete="username" placeholder="nombre@correo.com" maxLength="160" required/></label>
+          <label>Contraseña<input name="password" type="password" autoComplete="current-password" placeholder="Su contraseña" maxLength="72" required/></label>
+          <button disabled={busy}>{busy ? <><span className="spinner button-spinner" aria-hidden="true"/> Ingresando…</> : <>Ingresar a mi espacio <Icon name="arrow" size={18}/></>}</button>
+        </fieldset>
+        {busy && <PendingStatus message="Conectando con SIRA y verificando su cuenta…"/>}
+      </form>
+      <div className="login-footnote"><span>¿Es su primera visita?</span><p>Solicite su cuenta al profesional responsable.</p><InstallApp/></div>
+    </div><small className="login-form-caption">El seguimiento empieza con un registro.</small></section>
+  </main>;
 }
 
 export function RoutineList({ onSelect, reload }) {
@@ -60,7 +79,7 @@ function localDate() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-function ExecutionForm({ id, onClose, onSaved }) {
+function ExecutionForm({ id, onClose, onSaved, onBusyChange }) {
   const [routine, setRoutine] = useState(null);
   const [error, setError] = useState('');
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -81,12 +100,12 @@ function ExecutionForm({ id, onClose, onSaved }) {
       resultados: routine.pasos.map(p => ({ pasoRutinaId: p.id, resultado: form.get(`resultado-${p.id}`), observacionCorta: form.get(`observacion-${p.id}`) || null })) };
     if (body.horaFin < body.horaInicio) { setError('La hora final debe ser posterior o igual a la inicial.'); return; }
     if (!routine.diasSemana.includes(new Date(`${date}T12:00:00`).getDay() || 7)) { setError('La rutina no está programada para este día de la semana.'); return; }
-    submitting.current = true; setBusy(true); setError('');
+    submitting.current = true; setBusy(true); onBusyChange(true); setError('');
     try { const result = await api.cerrar(body); onSaved(result); }
     catch (e) { setError(e.message); }
-    finally { submitting.current = false; setBusy(false); }
+    finally { submitting.current = false; setBusy(false); onBusyChange(false); }
   }
-  return <section className="execution"><button className="back-link" disabled={busy} onClick={onClose}>← Volver a mis rutinas</button>{!routine ? <><ErrorMessage message={error}/>{error ? <button onClick={() => setLoadAttempt(n => n + 1)}>Reintentar</button> : <Loading/>}</> : <><span className="eyebrow">REGISTRO DE RUTINA · {routine.pasos.length} PASOS</span><h1>{routine.nombre}</h1><p>Seleccione el resultado de cada paso y añada una observación si lo necesita.</p><p className="days-note">Días: {routine.diasSemana.slice().sort().map(d => ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'][d - 1]).join(', ')}</p><form onSubmit={submit}><fieldset disabled={busy} className="form-fields"><div className="execution-meta"><label>Fecha<input type="date" value={date} onChange={e => setDate(e.target.value)} min={routine.vigenciaDesde} max={routine.vigenciaHasta && routine.vigenciaHasta < localDate() ? routine.vigenciaHasta : localDate()} required/></label><label>Hora de inicio<input type="time" name="horaInicio" defaultValue={routine.horaInicio.slice(0,5)} required/></label><label>Hora de finalización<input type="time" name="horaFin" required/></label></div>{routine.pasos.map((p, index) => <fieldset className="step" key={p.id}><legend><span className="step-number">{index + 1}</span> {p.descripcion}</legend><p className="step-estimate">Duración estimada: {p.duracionEstimadaMin} min</p><div className="outcomes">{[['LOGRADO', 'Logrado'], ['CON_APOYO', 'Con apoyo'], ['NO_LOGRADO', 'No logrado']].map(([value, text]) => <label key={value}><input type="radio" name={`resultado-${p.id}`} value={value} required/><span>{text}</span></label>)}</div><label className="observation">Observación (opcional)<input name={`observacion-${p.id}`} maxLength="240" placeholder="¿Qué conviene tener en cuenta para la próxima vez?"/></label></fieldset>)}<ErrorMessage message={error}/><div className="save-row"><p>Al guardar, se cierra el registro y se calcula la adherencia.</p><button disabled={busy || routine.pasos.length === 0}>{busy ? 'Guardando…' : 'Guardar registro'} <Icon name="check" size={18}/></button></div></fieldset></form></>}</section>;
+  return <section className="execution"><button className="back-link" disabled={busy} onClick={onClose}>← Volver a mis rutinas</button>{!routine ? <><ErrorMessage message={error}/>{error ? <button onClick={() => setLoadAttempt(n => n + 1)}>Reintentar</button> : <Loading message="Cargando los pasos de la rutina…"/>}</> : <><span className="eyebrow">REGISTRO DE RUTINA · {routine.pasos.length} PASOS</span><h1>{routine.nombre}</h1><p>Seleccione el resultado de cada paso y añada una observación si lo necesita.</p><p className="days-note">Días: {routine.diasSemana.slice().sort().map(d => ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'][d - 1]).join(', ')}</p><form onSubmit={submit} aria-busy={busy}><fieldset disabled={busy} className="form-fields"><div className="execution-meta"><label>Fecha<input type="date" value={date} onChange={e => setDate(e.target.value)} min={routine.vigenciaDesde} max={routine.vigenciaHasta && routine.vigenciaHasta < localDate() ? routine.vigenciaHasta : localDate()} required/></label><label>Hora de inicio<input type="time" name="horaInicio" defaultValue={routine.horaInicio.slice(0,5)} required/></label><label>Hora de finalización<input type="time" name="horaFin" required/></label></div>{routine.pasos.map((p, index) => <fieldset className="step" key={p.id}><legend><span className="step-number">{index + 1}</span> {p.descripcion}</legend><p className="step-estimate">Duración estimada: {p.duracionEstimadaMin} min</p><div className="outcomes">{[['LOGRADO', 'Logrado'], ['CON_APOYO', 'Con apoyo'], ['NO_LOGRADO', 'No logrado']].map(([value, text]) => <label key={value}><input type="radio" name={`resultado-${p.id}`} value={value} required/><span>{text}</span></label>)}</div><label className="observation">Observación (opcional)<input name={`observacion-${p.id}`} maxLength="240" placeholder="¿Qué conviene tener en cuenta para la próxima vez?"/></label></fieldset>)}<ErrorMessage message={error}/><div className="save-row"><p>Al guardar, se cierra el registro y se calcula la adherencia.</p><button disabled={busy || routine.pasos.length === 0}>{busy ? <><span className="spinner button-spinner" aria-hidden="true"/> Guardando…</> : <>Guardar registro <Icon name="check" size={18}/></>}</button></div></fieldset>{busy && <PendingStatus message="Guardando los resultados de la rutina…"/>}</form></>}</section>;
 }
 
 function History({ reload }) {
@@ -98,7 +117,7 @@ function History({ reload }) {
     api.historial(page, controller.signal).then(data => setState({ data })).catch(e => { if (e.name !== 'AbortError') setState({ error: e.message }); });
     return () => controller.abort();
   }, [page, retry, reload]);
-  return <><div className="page-intro"><span className="eyebrow">HISTORIAL DE ACOMPAÑAMIENTO</span><h1>Mis registros</h1><p>Consulte las fechas, los horarios y los resultados de sus rutinas.</p></div>{state.loading ? <Loading/> : state.error ? <><ErrorMessage message={state.error}/><button onClick={() => setRetry(n => n + 1)}>Reintentar</button></> : <><div className="history-table"><table><thead><tr><th>Fecha</th><th>Rutina</th><th>Horario</th><th>Adherencia</th><th>Estado</th></tr></thead><tbody>{state.data.contenido.map(e => <tr key={e.id}><td>{formatDate(e.fecha)}</td><td>Rutina #{e.rutinaId}</td><td>{e.horaInicio.slice(0,5)} – {e.horaFin?.slice(0,5) || '—'}</td><td><span className="adherence">{e.adherencia ?? '—'}{e.adherencia != null && '%'}</span></td><td><span className="tag">{{CERRADA:'Cerrada', ABIERTA:'Abierta'}[e.estado] || e.estado}</span></td></tr>)}{!state.data.contenido.length && <tr><td colSpan="5">Aún no hay registros. Puede crear el primero desde Mis rutinas.</td></tr>}</tbody></table></div><Pager data={state.data} page={page} onChange={setPage}/></>}</>;
+  return <><div className="page-intro"><span className="eyebrow">HISTORIAL DE ACOMPAÑAMIENTO</span><h1>Mis registros</h1><p>Consulte las fechas, los horarios y los resultados de sus rutinas.</p></div>{state.loading ? <Loading message="Cargando sus registros…"/> : state.error ? <><ErrorMessage message={state.error}/><button onClick={() => setRetry(n => n + 1)}>Reintentar</button></> : <><div className="history-table"><table><thead><tr><th>Fecha</th><th>Rutina</th><th>Horario</th><th>Adherencia</th><th>Estado</th></tr></thead><tbody>{state.data.contenido.map(e => <tr key={e.id}><td>{formatDate(e.fecha)}</td><td>Rutina #{e.rutinaId}</td><td>{e.horaInicio.slice(0,5)} – {e.horaFin?.slice(0,5) || '—'}</td><td><span className="adherence">{e.adherencia ?? '—'}{e.adherencia != null && '%'}</span></td><td><span className="tag">{{CERRADA:'Cerrada', ABIERTA:'Abierta'}[e.estado] || e.estado}</span></td></tr>)}{!state.data.contenido.length && <tr><td colSpan="5">Aún no hay registros. Puede crear el primero desde Mis rutinas.</td></tr>}</tbody></table></div><Pager data={state.data} page={page} onChange={setPage}/></>}</>;
 }
 
 export default function App() {
@@ -108,32 +127,33 @@ export default function App() {
   const [selected, setSelected] = useState(null);
   const [saved, setSaved] = useState(null);
   const [revision, setRevision] = useState(0);
-  function logout(message = '') { setSession(null); setUser(null); setNotice(message); setSelected(null); setSaved(null); setTab('rutinas'); }
+  const [saving, setSaving] = useState(false);
+  function logout(message = '') { setSession(null); setUser(null); setSaving(false); setNotice(message); setSelected(null); setSaved(null); setTab('rutinas'); }
   async function login(credentials) {
     const result = await api.login(credentials);
     setSession(result.accessToken, () => logout('Su sesión terminó. Ingrese de nuevo para continuar.'));
     try { const profile = await api.perfil(); setUser(profile); setNotice(''); }
     catch (error) { setSession(null); throw error; }
   }
-  if (!user) return <Login onLogin={login} notice={notice}/>;
+  if (!user) return <><ConnectionStatus/><Login onLogin={login} notice={notice}/></>;
   const professional = user.rol === 'PROFESIONAL';
-  return <div className="app-shell">
+  return <><ConnectionStatus/><div className="app-shell">
     <a className="skip-link" href="#contenido">Ir al contenido</a>
     <aside className="sidebar">
       <Brand/>
       <span className="sidebar-caption">ACOMPAÑAMIENTO</span>
       <nav aria-label="Principal">
-        <button className={tab === 'rutinas' ? 'active' : ''} aria-current={tab === 'rutinas' ? 'page' : undefined} onClick={() => { setTab('rutinas'); setSelected(null); }}><Icon name="grid"/> Mis rutinas <span className="nav-index">01</span></button>
-        {!professional && <button className={tab === 'historial' ? 'active' : ''} aria-current={tab === 'historial' ? 'page' : undefined} onClick={() => { setTab('historial'); setSelected(null); }}><Icon name="clock"/> Mis registros <span className="nav-index">02</span></button>}
+        <button disabled={saving} className={tab === 'rutinas' ? 'active' : ''} aria-current={tab === 'rutinas' ? 'page' : undefined} onClick={() => { setTab('rutinas'); setSelected(null); }}><Icon name="grid"/> Mis rutinas <span className="nav-index">01</span></button>
+        {!professional && <button disabled={saving} className={tab === 'historial' ? 'active' : ''} aria-current={tab === 'historial' ? 'page' : undefined} onClick={() => { setTab('historial'); setSelected(null); }}><Icon name="clock"/> Mis registros <span className="nav-index">02</span></button>}
       </nav>
-      <div className="sidebar-note"><span className="eyebrow">SU CUADERNO DIARIO</span><p>Las rutinas indican el camino.<br/>Sus registros cuentan cómo fue.</p><span className="note-rule"/></div>
-      <div className="sidebar-footer"><span className="avatar">{user.nombre[0]}</span><div><strong>{user.nombre.split(' ').slice(0,2).join(' ')}</strong><small>{professional ? 'Profesional' : 'Encargado'}</small></div><button className="icon-button" aria-label="Cerrar sesión" onClick={() => logout()}><Icon name="exit" size={20}/></button></div>
+      <div className="sidebar-install"><InstallApp/></div><div className="sidebar-note"><span className="eyebrow">SU CUADERNO DIARIO</span><p>Las rutinas indican el camino.<br/>Sus registros cuentan cómo fue.</p><span className="note-rule"/></div>
+      <div className="sidebar-footer"><span className="avatar">{user.nombre[0]}</span><div><strong>{user.nombre.split(' ').slice(0,2).join(' ')}</strong><small>{professional ? 'Profesional' : 'Encargado'}</small></div><button className="icon-button" aria-label="Cerrar sesión" disabled={saving} onClick={() => logout()}><Icon name="exit" size={20}/></button></div>
     </aside>
     <div className="workspace">
       <header className="topbar"><span>SIRA <span className="breadcrumb">/ {professional ? 'Profesionales' : selected ? 'Registrar rutina' : tab === 'rutinas' ? 'Mis rutinas' : 'Mis registros'}</span></span><time className="today">{new Intl.DateTimeFormat('es-CR', { day:'numeric', month:'long', year:'numeric' }).format(new Date())}</time></header>
       <main className="content" id="contenido">
         {professional ? <section className="professional-space"><span className="eyebrow">GESTIÓN Y SEGUIMIENTO</span><h1>Espacio profesional</h1><p>Administre participantes, encargados y rutinas desde el módulo de gestión.</p><a className="button" href={`${(import.meta.env.VITE_API_URL || '').replace(/\/$/,'')}/admin/participantes`}>Abrir administración <Icon name="arrow" size={18}/></a><div className="professional-index"><div><span>01</span><h2>Participantes</h2><p>Datos y red de apoyo.</p></div><div><span>02</span><h2>Encargados</h2><p>Cuentas para el registro diario.</p></div><div><span>03</span><h2>Rutinas</h2><p>Pasos, horarios y publicación.</p></div></div></section>
-        : selected ? <ExecutionForm key={selected} id={selected} onClose={() => setSelected(null)} onSaved={result => { setSaved(result); setSelected(null); setRevision(n => n + 1); }}/>
+        : selected ? <ExecutionForm onBusyChange={setSaving} key={selected} id={selected} onClose={() => setSelected(null)} onSaved={result => { setSaved(result); setSelected(null); setRevision(n => n + 1); }}/>
         : tab === 'historial' ? <History reload={revision}/>
         : <>
           <div className="page-intro dashboard-intro"><div><span className="eyebrow">CUADERNO DE ACOMPAÑAMIENTO</span><h1>Hola, {user.nombre.split(' ')[0]}<span className="hello-dot">.</span></h1><p>Estas son sus rutinas. Elija una para registrar cómo fue.</p></div><span className="page-number" aria-hidden="true">01 <span>/ RUTINAS</span></span></div>
@@ -142,7 +162,7 @@ export default function App() {
           <aside className="record-guide"><span className="guide-number" aria-hidden="true">i</span><div><h3>Registre lo que ocurrió.</h3><p>Un paso logrado con apoyo también cuenta. Puede dejar una observación para su profesional al completar la rutina.</p></div></aside>
         </>}
       </main>
-      <footer><strong>SIRA</strong><span>Sistema de Rutinas y Apoyos</span><span>Seguimiento cotidiano</span></footer>
+      <footer><strong>SIRA</strong><span>Sistema de Rutinas y Apoyos</span><span className="footer-install"><InstallApp/></span><span>Seguimiento cotidiano</span></footer>
     </div>
-  </div>;
+  </div></>;
 }

@@ -172,3 +172,15 @@ Las passwords de prueba de produccion se consultan en las variables privadas
 del servicio API de Render y se entregan al docente fuera de Git. PostgreSQL
 gratuito vence el 21 de noviembre de 2026. Los servicios gratuitos pueden tardar
 en despertar despues de un periodo de inactividad.
+
+La SPA se puede instalar como PWA desde el boton **Instalar SIRA** o desde el
+menu del navegador. Incluye manifiesto, iconos de 192/512 px y un service worker
+que conserva solo la interfaz publica. Ingresar, consultar rutinas y guardar
+requieren conexion; las respuestas de la API y las credenciales no se guardan
+en Cache Storage. Las actualizaciones esperan a que se cierren las ventanas de
+la aplicacion para no interrumpir formularios abiertos.
+
+El ingreso, las consultas y los guardados muestran un indicador de espera. A los
+8 segundos se explica la demora; la SPA cancela una solicitud que supera los
+120 segundos. Si no se puede confirmar un guardado, se indica consultar el
+historial antes de repetirlo. El MVC conserva campos y CSRF al bloquear reenvios.

@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { api, request, setSession } from './api';
 
-afterEach(() => { setSession(null); vi.unstubAllGlobals(); });
+afterEach(() => { setSession(null); vi.unstubAllGlobals(); vi.useRealTimers(); });
 it('envía JWT y datos JSON; no envía cookies de la sesión MVC', async () => {
   const fetch = vi.fn().mockResolvedValue({ ok:true, status:201, json:async () => ({ ejecucionId:5 }) });
   vi.stubGlobal('fetch', fetch); setSession('token-de-prueba');
@@ -28,4 +28,17 @@ it('muestra errores de campos y diferencia fallas de red de cancelaciones', asyn
   await expect(request('/api/v1/rutinas')).rejects.toThrow('fecha: Fecha inválida');
   await expect(request('/api/v1/rutinas')).rejects.toMatchObject({ status:0 });
   await expect(request('/api/v1/rutinas')).rejects.toMatchObject({ name:'AbortError' });
+});
+
+it('termina una espera excesiva y diferencia un guardado de resultado incierto', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('fetch', vi.fn((_url, { signal }) => new Promise((_resolve, reject) => {
+    signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+  })));
+  const login = expect(api.login({})).rejects.toThrow('tardando demasiado');
+  await vi.advanceTimersByTimeAsync(120000);
+  await login;
+  const save = expect(api.cerrar({ rutinaId:1 })).rejects.toThrow('Revise Mis registros');
+  await vi.advanceTimersByTimeAsync(120000);
+  await save;
 });
