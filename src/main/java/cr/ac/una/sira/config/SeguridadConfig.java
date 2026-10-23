@@ -2,6 +2,8 @@ package cr.ac.una.sira.config;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import cr.ac.una.sira.presentation.ProblemasHttp;
+import cr.ac.una.sira.business.AccesoAdministracionService;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -64,11 +66,14 @@ public class SeguridadConfig {
     @Bean
     @Order(1)
     SecurityFilterChain administracion(HttpSecurity http, UserDetailsService cuentas,
-                                      PasswordEncoder passwords) throws Exception {
+                                      PasswordEncoder passwords, AccesoAdministracionService accesos,
+                                      @Value("${sira.cors.origins:}") String origenes,
+                                      @Value("${sira.portal-url}") String portalUrl) throws Exception {
         var provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(cuentas);
         provider.setPasswordEncoder(passwords);
         return http.securityMatcher("/admin/**", "/css/**")
+                .addFilterBefore(new ContinuarAdministracionFilter(accesos, origenes, portalUrl), CsrfFilter.class)
                 .authenticationProvider(provider)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/admin/login", "/admin/acceso-denegado", "/css/**").permitAll()
@@ -78,7 +83,7 @@ public class SeguridadConfig {
                         .defaultSuccessUrl("/admin/participantes", true)
                         .failureUrl("/admin/login?error").permitAll())
                 .logout(logout -> logout.logoutUrl("/admin/logout")
-                        .logoutSuccessUrl("/admin/login?salida"))
+                        .logoutSuccessUrl(portalUrl))
                 .exceptionHandling(errors -> errors.accessDeniedPage("/admin/acceso-denegado"))
                 .csrf(Customizer.withDefaults())
                 .build();
@@ -119,6 +124,7 @@ public class SeguridadConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/usuarios/me").hasAnyRole("PROFESIONAL", "ENCARGADO")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/usuarios/me").hasAnyRole("PROFESIONAL", "ENCARGADO")
                         .requestMatchers(HttpMethod.POST, "/api/v1/ejecuciones/cierres").hasRole("ENCARGADO")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/acceso/administracion").hasRole("PROFESIONAL")
                         .requestMatchers("/api/v1/usuarios/**", "/api/v1/participantes/**", "/api/v1/rutinas/**")
                             .hasRole("PROFESIONAL")
                         .anyRequest().denyAll())

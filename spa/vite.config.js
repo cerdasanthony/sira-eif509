@@ -26,6 +26,6 @@ function pwaShell() {
 
 export default defineConfig({
   plugins: [react(), pwaShell()],
-  server: { proxy: { '/api': 'http://localhost:8080', '/auth': 'http://localhost:8080' } },
+  server: { proxy: { '/api': 'http://localhost:8080', '/auth': 'http://localhost:8080', '/admin': 'http://localhost:8080', '/css': 'http://localhost:8080' } },
   test: { environment: 'jsdom', restoreMocks: true },
 });

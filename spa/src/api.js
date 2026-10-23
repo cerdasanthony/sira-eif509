@@ -59,6 +59,7 @@ export async function request(path, { body, signal, ...options } = {}) {
 export const api = {
   login: body => request('/auth/login', { method: 'POST', body }),
   perfil: signal => request('/api/v1/usuarios/me', { signal }),
+  accesoAdministracion: () => request('/api/v1/acceso/administracion', { method: 'POST' }),
   rutinas: (page, signal) => request(`/api/v1/rutinas?page=${page}&size=6&sort=nombre,asc`, { signal }),
   rutina: (id, signal) => request(`/api/v1/rutinas/${id}`, { signal }),
   historial: (page, signal) => request(`/api/v1/ejecuciones?page=${page}&size=6&sort=fecha,desc`, { signal }),

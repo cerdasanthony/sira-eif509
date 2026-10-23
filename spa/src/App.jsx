@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, setSession } from './api';
+import { openAdministration } from './adminSession';
 import { ConnectionStatus, InstallApp, PendingStatus } from './Feedback';
 
 function Icon({ name = 'grid', size = 22 }) {
@@ -122,21 +123,36 @@ function History({ reload }) {
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(() => new URLSearchParams(window.location.search).get('acceso') === 'expirado' ? 'El acceso no se completó a tiempo. Ingrese de nuevo para continuar.' : '');
+  const [redirecting, setRedirecting] = useState(false);
   const [tab, setTab] = useState('rutinas');
   const [selected, setSelected] = useState(null);
   const [saved, setSaved] = useState(null);
   const [revision, setRevision] = useState(0);
   const [saving, setSaving] = useState(false);
-  function logout(message = '') { setSession(null); setUser(null); setSaving(false); setNotice(message); setSelected(null); setSaved(null); setTab('rutinas'); }
+  function logout(message = '') { setSession(null); setUser(null); setRedirecting(false); setSaving(false); setNotice(message); setSelected(null); setSaved(null); setTab('rutinas'); }
   async function login(credentials) {
     const result = await api.login(credentials);
     setSession(result.accessToken, () => logout('Su sesión terminó. Ingrese de nuevo para continuar.'));
-    try { const profile = await api.perfil(); setUser(profile); setNotice(''); }
-    catch (error) { setSession(null); throw error; }
+    try {
+      const profile = await api.perfil();
+      if (profile.rol === 'PROFESIONAL') {
+        const access = await api.accesoAdministracion();
+        setRedirecting(true);
+        setSession(null);
+        openAdministration(access.codigo);
+        return;
+      }
+      setUser(profile); setNotice('');
+    } catch (error) { setRedirecting(false); setSession(null); throw error; }
   }
+  useEffect(() => {
+    const restore = event => { if (event.persisted) logout(); };
+    window.addEventListener('pageshow', restore);
+    return () => window.removeEventListener('pageshow', restore);
+  }, []);
+  if (redirecting) return <main className="redirect-page"><Brand/><PendingStatus message="Abriendo su administración…"/></main>;
   if (!user) return <><ConnectionStatus/><Login onLogin={login} notice={notice}/></>;
-  const professional = user.rol === 'PROFESIONAL';
   return <><ConnectionStatus/><div className="app-shell">
     <a className="skip-link" href="#contenido">Ir al contenido</a>
     <aside className="sidebar">
@@ -144,16 +160,15 @@ export default function App() {
       <span className="sidebar-caption">ACOMPAÑAMIENTO</span>
       <nav aria-label="Principal">
         <button disabled={saving} className={tab === 'rutinas' ? 'active' : ''} aria-current={tab === 'rutinas' ? 'page' : undefined} onClick={() => { setTab('rutinas'); setSelected(null); }}><Icon name="grid"/> Mis rutinas <span className="nav-index">01</span></button>
-        {!professional && <button disabled={saving} className={tab === 'historial' ? 'active' : ''} aria-current={tab === 'historial' ? 'page' : undefined} onClick={() => { setTab('historial'); setSelected(null); }}><Icon name="clock"/> Mis registros <span className="nav-index">02</span></button>}
+        <button disabled={saving} className={tab === 'historial' ? 'active' : ''} aria-current={tab === 'historial' ? 'page' : undefined} onClick={() => { setTab('historial'); setSelected(null); }}><Icon name="clock"/> Mis registros <span className="nav-index">02</span></button>
       </nav>
       <div className="sidebar-install"><InstallApp/></div><div className="sidebar-note"><span className="eyebrow">SU CUADERNO DIARIO</span><p>Las rutinas indican el camino.<br/>Sus registros cuentan cómo fue.</p><span className="note-rule"/></div>
-      <div className="sidebar-footer"><span className="avatar">{user.nombre[0]}</span><div><strong>{user.nombre.split(' ').slice(0,2).join(' ')}</strong><small>{professional ? 'Profesional' : 'Encargado'}</small></div><button className="icon-button" aria-label="Cerrar sesión" disabled={saving} onClick={() => logout()}><Icon name="exit" size={20}/></button></div>
+      <div className="sidebar-footer"><span className="avatar">{user.nombre[0]}</span><div><strong>{user.nombre.split(' ').slice(0,2).join(' ')}</strong><small>Encargado</small></div><button className="icon-button" aria-label="Cerrar sesión" disabled={saving} onClick={() => logout()}><Icon name="exit" size={20}/></button></div>
     </aside>
     <div className="workspace">
-      <header className="topbar"><span>SIRA <span className="breadcrumb">/ {professional ? 'Profesionales' : selected ? 'Registrar rutina' : tab === 'rutinas' ? 'Mis rutinas' : 'Mis registros'}</span></span><time className="today">{new Intl.DateTimeFormat('es-CR', { day:'numeric', month:'long', year:'numeric' }).format(new Date())}</time></header>
+      <header className="topbar"><span>SIRA <span className="breadcrumb">/ {selected ? 'Registrar rutina' : tab === 'rutinas' ? 'Mis rutinas' : 'Mis registros'}</span></span><time className="today">{new Intl.DateTimeFormat('es-CR', { day:'numeric', month:'long', year:'numeric' }).format(new Date())}</time></header>
       <main className="content" id="contenido">
-        {professional ? <section className="professional-space"><span className="eyebrow">GESTIÓN Y SEGUIMIENTO</span><h1>Espacio profesional</h1><p>Administre participantes, encargados y rutinas desde el módulo de gestión.</p><a className="button" href={`${(import.meta.env.VITE_API_URL || '').replace(/\/$/,'')}/admin/participantes`}>Abrir administración <Icon name="arrow" size={18}/></a><div className="professional-index"><div><span>01</span><h2>Participantes</h2><p>Datos y red de apoyo.</p></div><div><span>02</span><h2>Encargados</h2><p>Cuentas para el registro diario.</p></div><div><span>03</span><h2>Rutinas</h2><p>Pasos, horarios y publicación.</p></div></div></section>
-        : selected ? <ExecutionForm onBusyChange={setSaving} key={selected} id={selected} onClose={() => setSelected(null)} onSaved={result => { setSaved(result); setSelected(null); setRevision(n => n + 1); }}/>
+        {selected ? <ExecutionForm onBusyChange={setSaving} key={selected} id={selected} onClose={() => setSelected(null)} onSaved={result => { setSaved(result); setSelected(null); setRevision(n => n + 1); }}/>
         : tab === 'historial' ? <History reload={revision}/>
         : <>
           <div className="page-intro dashboard-intro"><div><span className="eyebrow">CUADERNO DE ACOMPAÑAMIENTO</span><h1>Hola, {user.nombre.split(' ')[0]}<span className="hello-dot">.</span></h1><p>Estas son sus rutinas. Elija una para registrar cómo fue.</p></div><span className="page-number" aria-hidden="true">01 <span>/ RUTINAS</span></span></div>

@@ -21,7 +21,9 @@ acceden a repositorios ni hacen llamadas HTTP a la propia API.
 
 ## Flujo de demostracion
 
-1. Ingresar como profesional en `/admin/login`.
+1. Ingresar como profesional en la SPA. Se abre automaticamente el panel MVC,
+   sin boton intermedio ni un segundo ingreso. `/admin/login` sigue siendo una
+   entrada directa alternativa.
 2. Crear un encargado y anotar su ID, o usar la cuenta de prueba configurada.
 3. Crear un participante con ese encargado. Los listados solo muestran recursos
    que pertenecen al profesional autenticado.

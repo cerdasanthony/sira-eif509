@@ -4,11 +4,42 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App, { RoutineList } from './App';
 import { api, setSession } from './api';
-vi.mock('./api', () => ({ setSession:vi.fn(), api:{ login:vi.fn(), perfil:vi.fn(), rutinas:vi.fn(), rutina:vi.fn(), cerrar:vi.fn(), historial:vi.fn() } }));
+import { openAdministration } from './adminSession';
+vi.mock('./adminSession', () => ({ openAdministration:vi.fn() }));
+vi.mock('./api', () => ({ setSession:vi.fn(), api:{ login:vi.fn(), perfil:vi.fn(), accesoAdministracion:vi.fn(), rutinas:vi.fn(), rutina:vi.fn(), cerrar:vi.fn(), historial:vi.fn() } }));
 afterEach(cleanup);
 beforeEach(() => vi.resetAllMocks());
 const routine = { id:1, nombre:'Preparar la mañana', participanteId:1, horaInicio:'07:00:00', vigenciaDesde:'2026-01-01', diasSemana:[1,2,3,4,5,6,7], pasos:[{ id:11, descripcion:'Lavarse las manos', duracionEstimadaMin:3 }] };
 const page = (contenido = [routine], extra = {}) => ({ contenido, totalElementos:contenido.length, totalPaginas:1, primera:true, ultima:true, ...extra });
+
+it('Mariana entra directamente a administración con un solo ingreso', async () => {
+  api.login.mockResolvedValue({ accessToken:'jwt-profesional' });
+  api.perfil.mockResolvedValue({ nombre:'Mariana Vargas', rol:'PROFESIONAL' });
+  api.accesoAdministracion.mockResolvedValue({ codigo:'acceso-de-un-solo-uso' });
+  const user = userEvent.setup(); render(<App/>);
+  await user.type(screen.getByLabelText('Correo electrónico'), 'mariana@example.org');
+  await user.type(screen.getByLabelText('Contraseña'), 'PasswordPrueba2026!');
+  await user.click(screen.getByRole('button', { name:'Ingresar a mi espacio' }));
+  await waitFor(() => expect(openAdministration).toHaveBeenCalledWith('acceso-de-un-solo-uso'));
+  expect(api.login).toHaveBeenCalledOnce();
+  expect(api.accesoAdministracion).toHaveBeenCalledOnce();
+  expect(screen.queryByRole('link', { name:'Abrir administración' })).toBeNull();
+  expect(screen.getByRole('status').textContent).toContain('Abriendo su administración');
+  expect(api.rutinas).not.toHaveBeenCalled();
+});
+
+it('si falla el acceso administrativo conserva el login y permite reintentar', async () => {
+  api.login.mockResolvedValue({ accessToken:'jwt-profesional' });
+  api.perfil.mockResolvedValue({ nombre:'Mariana', rol:'PROFESIONAL' });
+  api.accesoAdministracion.mockRejectedValue(new Error('No se pudo abrir administración'));
+  const user = userEvent.setup(); render(<App/>);
+  await user.type(screen.getByLabelText('Correo electrónico'), 'mariana@example.org');
+  await user.type(screen.getByLabelText('Contraseña'), 'PasswordPrueba2026!');
+  await user.click(screen.getByRole('button', { name:'Ingresar a mi espacio' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('No se pudo abrir administración');
+  expect(openAdministration).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Correo electrónico').value).toBe('mariana@example.org');
+});
 
 it('hace visible la espera del login, bloquea reenvíos y permite corregir un error', async () => {
   let rejectLogin;
@@ -48,6 +79,7 @@ it('inicia sesión, registra todos los pasos y muestra adherencia e historial', 
   await user.type(screen.getByLabelText('Contraseña'), 'PasswordPrueba2026!');
   await user.click(screen.getByRole('button', { name:'Ingresar a mi espacio' }));
   await user.click(await screen.findByRole('button', { name:/Ver pasos y registrar/ }));
+  expect(api.accesoAdministracion).not.toHaveBeenCalled();
   await screen.findByRole('group', { name:'1 Lavarse las manos' });
   await user.type(screen.getByLabelText('Hora de finalización'), '07:10');
   await user.click(screen.getByLabelText('Logrado', { exact:true }));

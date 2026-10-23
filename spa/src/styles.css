@@ -297,3 +297,5 @@ tbody tr:hover { background: #f0f0e8; }
 @media(max-width:800px) { .sidebar-install { display:none; } .workspace footer .install-app { margin:0; } }
 .footer-install { display:none; }
 @media(max-width:800px) { .footer-install { display:block; flex-basis:100%; } }
+.redirect-page { min-height:100svh; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:2rem; padding:2rem; }
+.redirect-page .pending-status { width:100%; max-width:460px; }

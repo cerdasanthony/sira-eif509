@@ -43,7 +43,12 @@ public class AdminController {
     @GetMapping("/admin")
     public String admin() { return "redirect:/admin/participantes"; }
     @GetMapping("/admin/login")
-    public String login() { return "admin/login"; }
+    public String login(org.springframework.security.core.Authentication usuario) {
+        if (usuario != null && usuario.getAuthorities().stream().anyMatch(rol -> rol.getAuthority().equals("ROLE_PROFESIONAL"))) {
+            return "redirect:/admin/participantes";
+        }
+        return "admin/login";
+    }
 
     @RequestMapping("/admin/acceso-denegado")
     @ResponseStatus(HttpStatus.FORBIDDEN)

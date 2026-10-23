@@ -30,6 +30,7 @@ class MvcLocalTest {
     @Autowired MockMvc mvc;
     @Autowired UsuarioRepository usuarios;
     @Autowired PasswordEncoder passwords;
+    @Autowired com.fasterxml.jackson.databind.ObjectMapper mapper;
 
     @BeforeEach
     void credenciales() {
@@ -44,6 +45,87 @@ class MvcLocalTest {
         return (MockHttpSession) mvc.perform(post("/admin/login").with(csrf())
                 .param("correo", correo).param("password", "ClaveDePrueba2026!"))
                 .andExpect(status().is3xxRedirection()).andReturn().getRequest().getSession(false);
+    }
+
+    private String accesoDesdePortal(String correo) throws Exception {
+        var login = mvc.perform(post("/auth/login").contentType("application/json")
+                .content(mapper.writeValueAsString(java.util.Map.of("correo", correo, "password", "ClaveDePrueba2026!"))))
+                .andExpect(status().isOk()).andReturn();
+        String jwt = mapper.readTree(login.getResponse().getContentAsString()).path("accessToken").asText();
+        var acceso = mvc.perform(post("/api/v1/acceso/administracion").header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store")).andReturn();
+        assertThat(acceso.getRequest().getSession(false)).isNull();
+        return mapper.readTree(acceso.getResponse().getContentAsString()).path("codigo").asText();
+    }
+
+    @Test
+    void ingresoDelPortalAbreLaAdministracionSinPedirLaPasswordOtraVez() throws Exception {
+        String codigo = accesoDesdePortal("mariana.vargas@sira.local");
+        var anterior = new MockHttpSession();
+        String idAnterior = anterior.getId();
+        anterior.setAttribute("sesionAnterior", "dato");
+        var ingreso = mvc.perform(post("/admin/continuar").session(anterior)
+                .header("Origin", "https://familias.example.org").param("codigo", codigo))
+                .andExpect(redirectedUrl("/admin/participantes")).andReturn();
+        var session = (MockHttpSession) ingreso.getRequest().getSession(false);
+        assertThat(session).isNotNull();
+        assertThat(session.getId()).isNotEqualTo(idAnterior);
+        assertThat(anterior.isInvalid()).isTrue();
+        assertThat(session.getAttribute("sesionAnterior")).isNull();
+        mvc.perform(get("/admin/participantes").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Mateo")));
+        mvc.perform(get("/admin/login").session(session)).andExpect(redirectedUrl("/admin/participantes"));
+        mvc.perform(post("/admin/participantes/guardar").session(session)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/participantes").session(session)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/admin/continuar").header("Origin", "https://familias.example.org").param("codigo", codigo))
+                .andExpect(redirectedUrl("http://localhost:5173?acceso=expirado"));
+        mvc.perform(post("/admin/logout").session(session).with(csrf()))
+                .andExpect(redirectedUrl("http://localhost:5173"));
+        assertThat(session.isInvalid()).isTrue();
+    }
+
+    @Test
+    void elSaltoRechazaOtrosOrigenesSinConsumirElAcceso() throws Exception {
+        String codigo = accesoDesdePortal("mariana.vargas@sira.local");
+        for (String origen : new String[]{"https://malicioso.example", "null"}) {
+            var intento = mvc.perform(post("/admin/continuar").header("Origin", origen).param("codigo", codigo))
+                    .andExpect(status().isForbidden()).andReturn();
+            assertThat(intento.getRequest().getSession(false)).isNull();
+        }
+        mvc.perform(post("/admin/continuar").param("codigo", codigo)).andExpect(status().isForbidden());
+        mvc.perform(post("/admin/continuar").header("Origin", "https://familias.example.org").param("codigo", codigo))
+                .andExpect(redirectedUrl("/admin/participantes"));
+        mvc.perform(post("/admin/continuar").header("Origin", "https://familias.example.org").param("codigo", "inventado"))
+                .andExpect(redirectedUrl("http://localhost:5173?acceso=expirado"));
+    }
+
+    @Test
+    void elEncargadoNoPuedeSolicitarAccesoAdministrativo() throws Exception {
+        var login = mvc.perform(post("/auth/login").contentType("application/json")
+                .content("{\"correo\":\"laura.mendez@sira.local\",\"password\":\"ClaveDePrueba2026!\"}"))
+                .andExpect(status().isOk()).andReturn();
+        String jwt = mapper.readTree(login.getResponse().getContentAsString()).path("accessToken").asText();
+        mvc.perform(post("/api/v1/acceso/administracion").header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/acceso/administracion")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void elAccesoVenceYVuelveAComprobarSiLaCuentaEstaActiva() throws Exception {
+        var reloj = org.mockito.Mockito.mock(java.time.Clock.class);
+        var ahora = java.time.Instant.parse("2026-10-22T12:00:00Z");
+        org.mockito.Mockito.when(reloj.instant()).thenReturn(ahora);
+        var accesos = new cr.ac.una.sira.business.AccesoAdministracionService(usuarios, reloj);
+        String codigo = accesos.emitir(1L);
+        org.mockito.Mockito.when(reloj.instant()).thenReturn(ahora.plusSeconds(60));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> accesos.consumir(codigo))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        String vigente = accesoDesdePortal("mariana.vargas@sira.local");
+        usuarios.findById(1L).orElseThrow().desactivar();
+        usuarios.flush();
+        var intento = mvc.perform(post("/admin/continuar").header("Origin", "https://familias.example.org").param("codigo", vigente))
+                .andExpect(redirectedUrl("http://localhost:5173?acceso=expirado")).andReturn();
+        assertThat(intento.getRequest().getSession(false)).isNull();
     }
 
     @Test

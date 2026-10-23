@@ -124,11 +124,20 @@ npm ci
 npm run dev
 ```
 
-Administracion profesional: <http://localhost:8080/admin/login>.
-SPA del encargado: <http://localhost:5173>. Las cuentas locales de demostracion
+Entrada unica para ambos roles: <http://localhost:5173>. El profesional entra
+directamente a la administracion MVC y el encargado a sus rutinas, con un solo
+ingreso. El acceso MVC directo sigue disponible en <http://localhost:8080/admin/login>.
+Las cuentas locales de demostracion
 son las indicadas arriba. El perfil `prod` rechaza las credenciales de demostracion.
 La sesion MVC requiere CSRF; la SPA envia JWT en Authorization y conserva el token
 solo en memoria. Recargar la SPA requiere volver a ingresar.
+
+El salto del profesional emite, con JWT, un codigo aleatorio de un solo uso que
+vence a los 60 segundos. La SPA lo envia mediante navegacion POST a
+`/admin/continuar`; el filtro comprueba el Origin contra `SIRA_CORS_ORIGINS`,
+consume el codigo, revalida la cuenta y crea una sesion nueva. No se incluyen JWT
+ni passwords en la URL. Los demas formularios MVC mantienen CSRF y la sesion MVC
+no autentica la API. Cerrar sesion en administracion devuelve al portal unico.
 
 ## Variables de entorno de produccion
 
