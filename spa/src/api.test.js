@@ -36,9 +36,9 @@ it('termina una espera excesiva y diferencia un guardado de resultado incierto',
     signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
   })));
   const login = expect(api.login({})).rejects.toThrow('tardando demasiado');
-  await vi.advanceTimersByTimeAsync(120000);
+  await vi.advanceTimersByTimeAsync(240000);
   await login;
   const save = expect(api.cerrar({ rutinaId:1 })).rejects.toThrow('Revise Mis registros');
-  await vi.advanceTimersByTimeAsync(120000);
+  await vi.advanceTimersByTimeAsync(240000);
   await save;
 });

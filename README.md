@@ -182,5 +182,5 @@ la aplicacion para no interrumpir formularios abiertos.
 
 El ingreso, las consultas y los guardados muestran un indicador de espera. A los
 8 segundos se explica la demora; la SPA cancela una solicitud que supera los
-120 segundos. Si no se puede confirmar un guardado, se indica consultar el
+240 segundos. Si no se puede confirmar un guardado, se indica consultar el
 historial antes de repetirlo. El MVC conserva campos y CSRF al bloquear reenvios.

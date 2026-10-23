@@ -18,7 +18,7 @@ export async function request(path, { body, signal, ...options } = {}) {
   const abort = () => controller.abort();
   if (signal?.aborted) abort();
   else signal?.addEventListener('abort', abort, { once: true });
-  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 120000);
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 240000);
   try {
     const response = await fetch(`${base}${path}`, {
       ...options,

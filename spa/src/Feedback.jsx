@@ -9,7 +9,7 @@ export function PendingStatus({ message, className = '', slowAfter = 8000 }) {
   }, [slowAfter]);
   return <div className={`pending-status ${className}`} role="status" aria-live="polite">
     <span className="spinner" aria-hidden="true"/>
-    <div><strong>{message}</strong>{slow && <p>Está tardando un poco más. El primer acceso puede tomar cerca de un minuto. Mantenga esta pantalla abierta.</p>}</div>
+    <div><strong>{message}</strong>{slow && <p>Está tardando un poco más. El primer acceso puede tardar unos minutos. Mantenga esta pantalla abierta.</p>}</div>
   </div>;
 }
 
