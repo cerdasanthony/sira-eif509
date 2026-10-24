@@ -189,7 +189,13 @@ requieren conexion; las respuestas de la API y las credenciales no se guardan
 en Cache Storage. Las actualizaciones esperan a que se cierren las ventanas de
 la aplicacion para no interrumpir formularios abiertos.
 
-El ingreso, las consultas y los guardados muestran un indicador de espera. A los
-8 segundos se explica la demora; la SPA cancela una solicitud que supera los
+El ingreso comprueba primero `/actuator/health`, sin enviar credenciales ni JWT.
+Tolera hasta 4 minutos de arranque del servidor gratuito mediante consultas GET
+cortas y permite cancelar. Solo cuando la API responde `UP` envia un unico POST
+de autenticacion, con un limite de 30 segundos. El formulario distingue la espera
+del servidor, la verificacion de cuenta y la carga del perfil.
+
+Las consultas y los guardados tambien muestran un indicador de espera. A los
+8 segundos se explica la demora; las demas solicitudes tienen un limite de
 240 segundos. Si no se puede confirmar un guardado, se indica consultar el
 historial antes de repetirlo. El MVC conserva campos y CSRF al bloquear reenvios.

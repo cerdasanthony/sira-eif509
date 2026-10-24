@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useInstall } from './pwa';
 
-export function PendingStatus({ message, className = '', slowAfter = 8000 }) {
+export function PendingStatus({ message, className = '', slowAfter = 8000, slowMessage = 'Está tardando un poco más. El primer acceso puede tardar unos minutos. Mantenga esta pantalla abierta.' }) {
   const [slow, setSlow] = useState(false);
   useEffect(() => {
     const timer = setTimeout(() => setSlow(true), slowAfter);
@@ -9,7 +9,7 @@ export function PendingStatus({ message, className = '', slowAfter = 8000 }) {
   }, [slowAfter]);
   return <div className={`pending-status ${className}`} role="status" aria-live="polite">
     <span className="spinner" aria-hidden="true"/>
-    <div><strong>{message}</strong>{slow && <p>Está tardando un poco más. El primer acceso puede tardar unos minutos. Mantenga esta pantalla abierta.</p>}</div>
+    <div><strong>{message}</strong>{slow && <p>{slowMessage}</p>}</div>
   </div>;
 }
 

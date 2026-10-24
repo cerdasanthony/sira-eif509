@@ -31,15 +31,20 @@ function Pager({ data, page, onChange }) {
 function Login({ onLogin, notice }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState('Conectando con SIRA…');
   const submitting = useRef(false);
+  const attempt = useRef(null);
+  useEffect(() => () => attempt.current?.abort(), []);
   async function submit(event) {
     event.preventDefault();
     if (submitting.current) return;
     const form = new FormData(event.currentTarget);
-    submitting.current = true; setBusy(true); setError('');
-    try { await onLogin({ correo: form.get('correo'), password: form.get('password') }); }
-    catch (e) { setError(e.message); }
-    finally { submitting.current = false; setBusy(false); }
+    const controller = new AbortController();
+    attempt.current = controller;
+    submitting.current = true; setBusy(true); setError(''); setProgress('Conectando con SIRA…');
+    try { await onLogin({ correo: form.get('correo'), password: form.get('password') }, { signal: controller.signal, onProgress: setProgress }); }
+    catch (e) { if (e.name !== 'AbortError') setError(e.message); }
+    finally { if (attempt.current === controller) { attempt.current = null; submitting.current = false; setBusy(false); } }
   }
   return <main className="login">
     <section className="login-story"><Brand/><div className="login-editorial"><span className="eyebrow">LA CONSTANCIA SE CONSTRUYE EN CASA</span><h1>Un día.<br/>Una rutina.<br/><em>A su ritmo.</em></h1><p>Las rutinas, los apoyos y lo que sucede entre ambos. Todo en un mismo lugar.</p><ol className="login-index"><li><span>01</span> Consulte la rutina</li><li><span>02</span> Registre cada paso</li><li><span>03</span> Comparta el resultado</li></ol></div><small>Sistema de Rutinas y Apoyos <span>·</span> SIRA</small></section>
@@ -52,7 +57,7 @@ function Login({ onLogin, notice }) {
           <label>Contraseña<input name="password" type="password" autoComplete="current-password" placeholder="Su contraseña" maxLength="72" required/></label>
           <button disabled={busy}>{busy ? <><span className="spinner button-spinner" aria-hidden="true"/> Ingresando…</> : <>Ingresar a mi espacio <Icon name="arrow" size={18}/></>}</button>
         </fieldset>
-        {busy && <PendingStatus message="Conectando con SIRA y verificando su cuenta…"/>}
+        {busy && <><PendingStatus key={progress} message={progress} slowMessage="El servidor gratuito puede necesitar hasta 4 minutos para iniciar. El ingreso continuará automáticamente cuando esté listo."/><button type="button" className="cancel-login secondary" onClick={() => attempt.current?.abort()}>Cancelar ingreso</button></>}
       </form>
       <div className="login-footnote"><span>¿Es su primera visita?</span><p>Solicite su cuenta al profesional responsable.</p><InstallApp/></div>
     </div><small className="login-form-caption">El seguimiento empieza con un registro.</small></section>
@@ -131,13 +136,18 @@ export default function App() {
   const [revision, setRevision] = useState(0);
   const [saving, setSaving] = useState(false);
   function logout(message = '') { setSession(null); setUser(null); setRedirecting(false); setSaving(false); setNotice(message); setSelected(null); setSaved(null); setTab('rutinas'); }
-  async function login(credentials) {
-    const result = await api.login(credentials);
+  async function login(credentials, { signal, onProgress }) {
+    const result = await api.login(credentials, { signal, onProgress });
+    signal.throwIfAborted();
     setSession(result.accessToken, () => logout('Su sesión terminó. Ingrese de nuevo para continuar.'));
     try {
-      const profile = await api.perfil();
+      onProgress('Cargando su perfil…');
+      const profile = await api.perfil(signal);
+      signal.throwIfAborted();
       if (profile.rol === 'PROFESIONAL') {
-        const access = await api.accesoAdministracion();
+        onProgress('Preparando su administración…');
+        const access = await api.accesoAdministracion(signal);
+        signal.throwIfAborted();
         setRedirecting(true);
         setSession(null);
         openAdministration(access.codigo);

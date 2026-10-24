@@ -223,4 +223,17 @@ class MvcLocalTest {
                 .header("Access-Control-Request-Method", "GET"))
                 .andExpect(status().isForbidden()).andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
     }
+
+    @Test
+    void portalPuedeComprobarSaludSinSesionNiDetallesPrivados() throws Exception {
+        var response = mvc.perform(get("/actuator/health").header("Origin", "https://familias.example.org"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://familias.example.org"))
+                .andExpect(header().doesNotExist("Access-Control-Allow-Credentials"))
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.components").doesNotExist()).andReturn();
+        assertThat(response.getRequest().getSession(false)).isNull();
+        mvc.perform(get("/actuator/health").header("Origin", "https://otro.example.org"))
+                .andExpect(status().isForbidden()).andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
 }

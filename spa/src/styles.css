@@ -286,6 +286,7 @@ tbody tr:hover { background: #f0f0e8; }
 .loading-state { justify-content:center; padding:2.5rem 1.5rem; }
 .button-spinner { border-color:#ffffff66; border-top-color:white; margin:0; width:19px; height:19px; flex-shrink:0; }
 .form-inner form[aria-busy=true] button { justify-content:center; opacity:1; background:#873320; cursor:wait; }
+.form-inner form[aria-busy=true] .cancel-login { background:transparent; color:var(--accent); cursor:pointer; }
 .form-fields:disabled input { background:#efefe7; opacity:.8; }
 .connection-status { position:relative; z-index:5; background:#faeae4; color:#8c3025; padding:1rem 5%; text-align:center; font-size:.85rem; border-bottom:1px solid #bf8f7c; }
 .install-app { margin-top:1rem; }

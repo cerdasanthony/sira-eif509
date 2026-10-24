@@ -102,6 +102,11 @@ public class SeguridadConfig {
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", cors);
         source.registerCorsConfiguration("/auth/**", cors);
+        var healthCors = new CorsConfiguration();
+        healthCors.setAllowedOrigins(cors.getAllowedOrigins());
+        healthCors.setAllowedMethods(List.of("GET"));
+        healthCors.setAllowCredentials(false);
+        source.registerCorsConfiguration("/actuator/health", healthCors);
         return source;
     }
 

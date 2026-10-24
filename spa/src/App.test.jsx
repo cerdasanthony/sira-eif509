@@ -58,6 +58,23 @@ it('hace visible la espera del login, bloquea reenvíos y permite corregir un er
   expect(screen.getByLabelText('Correo electrónico').value).toBe('laura@example.org');
 });
 
+it('cancelar el ingreso desbloquea los campos e impide abrir una sesión tardía', async () => {
+  api.login.mockImplementation((_credentials, { signal, onProgress }) => {
+    onProgress('Esperando a que el servidor de SIRA esté listo…');
+    return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))));
+  });
+  const user = userEvent.setup(); render(<App/>);
+  await user.type(screen.getByLabelText('Correo electrónico'), 'laura@example.org');
+  await user.type(screen.getByLabelText('Contraseña'), 'PasswordPrueba2026!');
+  await user.click(screen.getByRole('button', { name:'Ingresar a mi espacio' }));
+  expect(screen.getByRole('status').textContent).toContain('Esperando a que el servidor');
+  await user.click(screen.getByRole('button', { name:'Cancelar ingreso' }));
+  await waitFor(() => expect(screen.getByRole('button', { name:'Ingresar a mi espacio' }).disabled).toBe(false));
+  expect(screen.getByLabelText('Correo electrónico').value).toBe('laura@example.org');
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(api.perfil).not.toHaveBeenCalled();
+});
+
 it('presenta carga, error, reintento, datos y paginación', async () => {
   api.rutinas.mockRejectedValueOnce(new Error('No hay conexión')).mockResolvedValueOnce(page([routine], { totalPaginas:2, ultima:false })).mockResolvedValueOnce(page([], { primera:false }));
   const user = userEvent.setup(); render(<RoutineList onSelect={() => {}}/>);
