@@ -15,6 +15,8 @@ Proyecto del curso EIF509 Desarrollo de Aplicaciones Basadas en Web, NRC 51092, 
 - [Laboratorio 4: capa de negocio, transacciones, DTOs y pruebas](docs/lab4-capa-negocio.md)
 - [Laboratorio 5: API REST, JWT, OpenAPI y pruebas](docs/lab5-api-rest.md)
 - [Laboratorio 6: MVC, React y despliegue](docs/lab6-presentacion-despliegue.md)
+- [Laboratorio 7: seguridad, concurrencia y observabilidad](docs/lab7-seguridad-robustez.md)
+- [Auditoria de seguridad](AUDITORIA-SEGURIDAD.md)
 - [Diagrama de despliegue](docs/despliegue.md)
 - [Datos que completar para la entrega](docs/entrega-lab6.md)
 - [Coleccion de peticiones REST](docs/sira-api.http)
@@ -70,6 +72,8 @@ Swagger UI: <http://localhost:8080/swagger-ui.html>.
 | `POST /api/v1/ejecuciones/cierres` | Cierre transaccional, 201 + Location |
 | `GET /api/v1/ejecuciones` | Historial propio por fechas y adherencia |
 | `GET /actuator/health` | Estado de salud publico, sin detalles internos |
+| `PUT /api/v1/rutinas/{id}` | Acepta `version`; 409 `CONFLICTO_VERSION` si otra sesion guardo antes |
+| `POST /api/v1/rutinas/{id}/publicaciones?version=N` | Misma proteccion al publicar |
 
 Con el perfil `demo`, iniciar sesion con `mariana.vargas@sira.local` (PROFESIONAL)
 o `laura.mendez@sira.local` (ENCARGADO), password `SiraDemo2026!`.
@@ -94,6 +98,7 @@ Las dependencias van en una sola dirección: `presentación -> negocio -> datos`
 ./gradlew test
 ```
 
+La suite tiene 135 pruebas en la integracion continua y 96 sin Docker.
 Las pruebas unitarias con Mockito ejercitan los caminos felices y las reglas de
 los dos procesos sin levantar Spring. Las pruebas de integracion usan
 Testcontainers con PostgreSQL 16 real para validar persistencia y demostrar que
@@ -105,7 +110,14 @@ activo. Sin Docker se omiten las pruebas reales; la CI exige que no se omitan.
 
 ## Integración continua
 
-Cada push a `main` dispara [`.github/workflows/ci.yml`](.github/workflows/ci.yml), que compila y corre las pruebas en una máquina Linux limpia con Java 21. El estado se ve en el badge de arriba.
+Cada push a `main` dispara [`.github/workflows/ci.yml`](.github/workflows/ci.yml), que
+compila y prueba la SPA y el backend en una maquina Linux limpia con Java 21, exige la
+cobertura minima de JaCoCo en la capa de negocio, exige que las pruebas con PostgreSQL
+real no se omitan y exige al menos 40 pruebas en verde. Solo cuando todo eso pasa, y
+solo desde `main`, el trabajo `desplegar` llama a los deploy hooks de la plataforma y
+espera a que `/actuator/health` responda `UP`. Los tres secretos del despliegue viven en
+GitHub Secrets y nunca se imprimen. Dependabot revisa las dependencias cada semana.
+El estado se ve en el badge de arriba.
 
 ## Laboratorio 6: ejecutar las dos interfaces
 
@@ -138,6 +150,39 @@ vence a los 60 segundos. La SPA lo envia mediante navegacion POST a
 consume el codigo, revalida la cuenta y crea una sesion nueva. No se incluyen JWT
 ni passwords en la URL. Los demas formularios MVC mantienen CSRF y la sesion MVC
 no autentica la API. Cerrar sesion en administracion devuelve al portal unico.
+
+## Concurrencia: por que la rutina lleva bloqueo optimista
+
+La rutina es la fila que dos personas pueden guardar al mismo tiempo: el profesional
+edita el borrador en el panel MVC y lo publica desde el listado, de modo que el mismo
+registro se escribe desde dos pantallas y, si queda abierto en dos ventanas o lo atiende
+un suplente, la segunda escritura pisaria la primera sin que nadie se entere.
+
+Por eso `Rutina` lleva `@Version` (migracion `V4__bloqueo_optimista_rutina.sql`). El
+detalle y el listado exponen `version`, el formulario MVC la conserva en un campo oculto
+y el servicio la compara antes de escribir; la carrera posterior la detecta Hibernate.
+En ambos casos la respuesta es `409` con Problem Details y el codigo `CONFLICTO_VERSION`,
+y el conflicto queda registrado como evento de seguridad. El detalle y las pruebas que
+provocan el conflicto estan en la
+[auditoria de seguridad](AUDITORIA-SEGURIDAD.md#3-concurrencia-por-que-la-rutina-y-no-otra-cosa).
+
+## Seguridad y observabilidad
+
+Toda respuesta lleva HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`,
+`Permissions-Policy` y una `Content-Security-Policy` propia de cada cadena: `default-src
+'none'` en la API, `default-src 'self'` sin codigo en linea en el panel MVC y una politica
+aparte para Swagger UI. El ingreso admite cinco intentos fallidos por cuenta y origen; a
+partir del sexto la API responde `429` con `Retry-After` y el panel MVC muestra un aviso.
+
+`/actuator/health` es el unico endpoint de Actuator expuesto, sin detalles ni componentes.
+En el perfil `prod` los registros salen a la salida estandar en JSON
+(`src/main/resources/logback-spring.xml`), y el logger `cr.ac.una.sira.seguridad` publica
+los ingresos fallidos, las cuentas en espera, los accesos denegados y los conflictos de
+version. Ningun registro incluye passwords, hashes ni tokens: del correo solo salen dos
+letras y el dominio.
+
+Los hallazgos de la revision y sus correcciones estan en
+[AUDITORIA-SEGURIDAD.md](AUDITORIA-SEGURIDAD.md).
 
 ## Variables de entorno de produccion
 

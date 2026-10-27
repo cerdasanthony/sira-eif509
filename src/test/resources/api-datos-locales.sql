@@ -13,10 +13,10 @@ INSERT INTO participante (id, profesional_id, encargado_id, nombre, fecha_nacimi
     (1, 1, 3, 'Mateo Mendez', DATE '2016-04-18', TRUE),
     (2, 2, 4, 'Sofia Solano', DATE '2014-11-03', TRUE);
 
-INSERT INTO rutina (id, participante_id, nombre, hora_inicio, vigencia_desde, vigencia_hasta, estado, publicado_en) VALUES
-    (1, 1, 'Rutina de higiene de la manana', TIME '06:30', DATE '2026-08-01', NULL, 'PUBLICADA', TIMESTAMP WITH TIME ZONE '2026-08-01 08:00:00-06'),
-    (2, 1, 'Preparar mochila escolar', TIME '19:00', DATE '2026-08-05', NULL, 'PUBLICADA', TIMESTAMP WITH TIME ZONE '2026-08-05 15:30:00-06'),
-    (3, 2, 'Rutina de llegada a casa', TIME '15:30', DATE '2026-08-10', NULL, 'PUBLICADA', TIMESTAMP WITH TIME ZONE '2026-08-10 09:15:00-06');
+INSERT INTO rutina (id, participante_id, nombre, hora_inicio, vigencia_desde, vigencia_hasta, estado, publicado_en, version) VALUES
+    (1, 1, 'Rutina de higiene de la manana', TIME '06:30', DATE '2026-08-01', NULL, 'PUBLICADA', TIMESTAMP WITH TIME ZONE '2026-08-01 08:00:00-06', 0),
+    (2, 1, 'Preparar mochila escolar', TIME '19:00', DATE '2026-08-05', NULL, 'PUBLICADA', TIMESTAMP WITH TIME ZONE '2026-08-05 15:30:00-06', 0),
+    (3, 2, 'Rutina de llegada a casa', TIME '15:30', DATE '2026-08-10', NULL, 'PUBLICADA', TIMESTAMP WITH TIME ZONE '2026-08-10 09:15:00-06', 0);
 
 INSERT INTO rutina_dia_semana (rutina_id, dia_semana) VALUES
     (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),

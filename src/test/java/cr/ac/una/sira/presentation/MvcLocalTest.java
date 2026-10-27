@@ -215,6 +215,75 @@ class MvcLocalTest {
     }
 
     @Test
+    void elFormularioDeRutinaLlevaLaVersionYRechazaGuardarUnaCopiaVencida() throws Exception {
+        var session = ingresar("mariana.vargas@sira.local");
+        mvc.perform(post("/admin/rutinas/guardar").session(session).with(csrf())
+                .param("participanteId", "1").param("nombre", "Rutina compartida").param("horaInicio", "10:00")
+                .param("vigenciaDesde", "2026-10-01").param("diasSemana", "1", "2")
+                .param("pasosTexto", "Preparar los materiales | 3"))
+                .andExpect(redirectedUrl("/admin/rutinas"));
+
+        mvc.perform(get("/admin/rutinas/10/editar").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"version\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"0\"")));
+
+        // La primera ventana guarda y la fila pasa a la version 1.
+        mvc.perform(post("/admin/rutinas/guardar").session(session).with(csrf()).param("id", "10")
+                .param("participanteId", "1").param("nombre", "Rutina de la primera ventana")
+                .param("horaInicio", "10:00").param("vigenciaDesde", "2026-10-01")
+                .param("diasSemana", "1", "2").param("pasosTexto", "Preparar los materiales | 3")
+                .param("version", "0"))
+                .andExpect(redirectedUrl("/admin/rutinas"));
+
+        // La segunda ventana todavia tiene la version 0 y no debe pisar el cambio anterior.
+        mvc.perform(post("/admin/rutinas/guardar").session(session).with(csrf()).param("id", "10")
+                .param("participanteId", "1").param("nombre", "Rutina de la segunda ventana")
+                .param("horaInicio", "10:00").param("vigenciaDesde", "2026-10-01")
+                .param("diasSemana", "1", "2").param("pasosTexto", "Preparar los materiales | 3")
+                .param("version", "0"))
+                .andExpect(status().isOk()).andExpect(model().attributeHasErrors("form"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("mientras usted la editaba")));
+
+        mvc.perform(post("/admin/rutinas/10/publicar").session(session).with(csrf()).param("version", "0"))
+                .andExpect(redirectedUrl("/admin/rutinas")).andExpect(flash().attributeExists("error"));
+    }
+
+    @Test
+    void elPanelMvcSirveUnaPoliticaDeContenidoEstrictaYLasDemasCabeceras() throws Exception {
+        mvc.perform(get("/admin/login").secure(true)).andExpect(status().isOk())
+                .andExpect(header().string("Content-Security-Policy",
+                        org.hamcrest.Matchers.containsString("script-src 'self'")))
+                .andExpect(header().string("Content-Security-Policy",
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("unsafe-inline"))))
+                .andExpect(header().string("Content-Security-Policy",
+                        org.hamcrest.Matchers.containsString("form-action 'self'")))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("X-Frame-Options", "DENY"))
+                .andExpect(header().string("Referrer-Policy", "strict-origin-when-cross-origin"))
+                .andExpect(header().string("Permissions-Policy",
+                        org.hamcrest.Matchers.containsString("geolocation=()")))
+                .andExpect(header().string("Strict-Transport-Security",
+                        org.hamcrest.Matchers.containsString("includeSubDomains")));
+    }
+
+    @Test
+    void cincoIngresosFallidosEnElPanelDejanLaCuentaEnEspera() throws Exception {
+        for (int intento = 1; intento <= 5; intento++) {
+            mvc.perform(post("/admin/login").with(csrf())
+                    .param("correo", "nadie@sira.local").param("password", "incorrecta" + intento))
+                    .andExpect(redirectedUrl("/admin/login?error"));
+        }
+        mvc.perform(post("/admin/login").with(csrf())
+                .param("correo", "nadie@sira.local").param("password", "incorrecta6"))
+                .andExpect(redirectedUrl("/admin/login?bloqueado"));
+        mvc.perform(get("/admin/login?bloqueado")).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Demasiados intentos")));
+
+        // Otra cuenta no queda atrapada por el freno de la primera.
+        assertThat(ingresar("mariana.vargas@sira.local")).isNotNull();
+    }
+
+    @Test
     void corsAceptaSoloOrigenConfigurado() throws Exception {
         mvc.perform(options("/api/v1/rutinas").header("Origin", "https://familias.example.org")
                 .header("Access-Control-Request-Method", "GET").header("Access-Control-Request-Headers", "authorization"))

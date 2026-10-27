@@ -50,6 +50,7 @@ public class RutinaController {
     }
 
     @PutMapping("/{id}")
+    @ApiResponse(responseCode = "409", description = "Otra sesion guardo el borrador primero")
     @Operation(summary = "Reemplazar datos y pasos de un borrador propio (PROFESIONAL)")
     public RutinaSalida actualizar(@PathVariable Long id, @Valid @RequestBody RutinaEntrada entrada) {
         return servicio.actualizar(id, entrada);
@@ -64,6 +65,10 @@ public class RutinaController {
     }
 
     @PostMapping("/{id}/publicaciones")
+    @ApiResponse(responseCode = "409", description = "Otra sesion guardo o publico el borrador primero")
     @Operation(summary = "Publicar borrador propio tras validar reglas del Lab 4 (PROFESIONAL)")
-    public PublicarRutinaSalida publicar(@PathVariable Long id) { return servicio.publicar(id); }
+    public PublicarRutinaSalida publicar(@PathVariable Long id,
+            @RequestParam(required = false) Long version) {
+        return servicio.publicar(id, version);
+    }
 }

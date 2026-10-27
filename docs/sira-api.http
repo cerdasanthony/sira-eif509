@@ -105,6 +105,15 @@ Content-Type: application/json
 
 {"participanteId":{{participanteId}},"nombre":"Prepararse para dormir","horaInicio":"21:15:00","vigenciaDesde":"2026-08-01","vigenciaHasta":null,"diasSemana":[1,2,3,4,5,6,7],"pasos":[{"descripcion":"Preparar pijama","duracionEstimadaMin":5},{"descripcion":"Guardar ropa","duracionEstimadaMin":5}]}
 
+### Guardar con la version vencida: 409 CONFLICTO_VERSION
+# El PUT anterior dejo la rutina en la version siguiente; repetir la version 0
+# simula la otra ventana del profesional, que todavia tiene el formulario viejo.
+PUT {{base}}/api/v1/rutinas/{{rutinaId}}
+Authorization: Bearer {{pro}}
+Content-Type: application/json
+
+{"participanteId":{{participanteId}},"nombre":"Prepararse para dormir (otra ventana)","horaInicio":"21:15:00","vigenciaDesde":"2026-08-01","vigenciaHasta":null,"diasSemana":[1,2,3,4,5,6,7],"pasos":[{"descripcion":"Preparar pijama","duracionEstimadaMin":5},{"descripcion":"Guardar ropa","duracionEstimadaMin":5}],"version":0}
+
 ### Proceso de publicacion: 200; repetir devuelve 409
 POST {{base}}/api/v1/rutinas/{{rutinaId}}/publicaciones
 Authorization: Bearer {{pro}}
@@ -185,6 +194,19 @@ Content-Type: application/json
 
 ### OpenAPI publico: 200
 GET {{base}}/v3/api-docs
+
+### Chequeo de salud publico, sin detalles: 200 {"status":"UP"}
+GET {{base}}/actuator/health
+
+### Resto de Actuator cerrado: 4xx
+GET {{base}}/actuator/env
+
+### Sexto ingreso fallido seguido: 429 con Retry-After
+# Repetir este bloque seis veces con la misma cuenta desde el mismo origen.
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{"correo":"mariana.vargas@sira.local","password":"incorrecta"}
 
 ### Desactivar cuenta propia: 204. Ejecutar al terminar la demostracion.
 # Su token dejara de permitir consultas; el perfil demo no reactiva cuentas.

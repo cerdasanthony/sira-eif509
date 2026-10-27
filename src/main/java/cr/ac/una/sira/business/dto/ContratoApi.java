@@ -59,14 +59,19 @@ public final class ContratoApi {
             @NotNull LocalDate vigenciaDesde,
             LocalDate vigenciaHasta,
             @NotNull @Size(max = 7) Set<@NotNull @Min(1) @Max(7) Short> diasSemana,
-            @NotNull @Size(max = 100) List<@NotNull @Valid PasoEntrada> pasos) { }
+            @NotNull @Size(max = 100) List<@NotNull @Valid PasoEntrada> pasos,
+            @PositiveOrZero
+            @Schema(description = "Version leida al abrir el borrador; si otra persona guardo antes, la respuesta es 409")
+            Long version) { }
 
     public record RutinaResumen(Long id, Long participanteId, String nombre, LocalTime horaInicio,
-                                LocalDate vigenciaDesde, LocalDate vigenciaHasta, EstadoRutina estado) { }
+                                LocalDate vigenciaDesde, LocalDate vigenciaHasta, EstadoRutina estado,
+                                long version) { }
 
     public record RutinaSalida(Long id, Long participanteId, String nombre, LocalTime horaInicio,
                                LocalDate vigenciaDesde, LocalDate vigenciaHasta, EstadoRutina estado,
-                               Set<Short> diasSemana, List<PasoSalida> pasos, OffsetDateTime publicadoEn) { }
+                               Set<Short> diasSemana, List<PasoSalida> pasos, OffsetDateTime publicadoEn,
+                               long version) { }
 
     // La identidad del encargado procede del JWT, nunca del cuerpo recibido.
     public record CierreEntrada(

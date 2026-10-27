@@ -12,7 +12,8 @@ public record RutinaFormulario(
         @NotNull LocalDate vigenciaDesde,
         LocalDate vigenciaHasta,
         @NotEmpty Set<@Min(1) @Max(7) Short> diasSemana,
-        @NotBlank @Size(max = 26000) String pasosTexto) {
+        @NotBlank @Size(max = 26000) String pasosTexto,
+        @PositiveOrZero Long version) {
 
     public RutinaEntrada entrada() {
         var lineas = pasosTexto.lines().filter(s -> !s.isBlank()).toList();
@@ -30,6 +31,7 @@ public record RutinaFormulario(
                 throw new IllegalArgumentException("Cada paso requiere descripcion (max. 240) y de 1 a 180 minutos");
             pasos.add(new PasoEntrada(descripcion, minutos, null));
         }
-        return new RutinaEntrada(participanteId, nombre, horaInicio, vigenciaDesde, vigenciaHasta, diasSemana, pasos);
+        return new RutinaEntrada(participanteId, nombre, horaInicio, vigenciaDesde,
+                vigenciaHasta, diasSemana, pasos, version);
     }
 }

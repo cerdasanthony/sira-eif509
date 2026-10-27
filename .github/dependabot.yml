@@ -1,0 +1,44 @@
+# Punto 8 de la lista de verificacion de la Sesion 14: las dependencias no deben
+# tener vulnerabilidades conocidas. Dependabot abre un pull request cuando aparece
+# una version nueva; la CI lo verifica antes de que se pueda integrar a main.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+    labels:
+      - dependencias
+
+  - package-ecosystem: npm
+    directory: "/spa"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+    labels:
+      - dependencias
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
+    labels:
+      - dependencias
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore"
+    labels:
+      - dependencias

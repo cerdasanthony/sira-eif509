@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.*;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -371,6 +372,112 @@ abstract class ApiRestContrato {
                             .path("paths").path("/auth/login").path("post").path("security");
                     assertThat(security.isMissingNode() || security.isEmpty()).isTrue();
                 });
+    }
+
+    @Test
+    void guardarOPublicarConUnaVersionVencidaDevuelve409ConProblemDetails() throws Exception {
+        String ruta = crearRutina(2);
+        long version = version(ruta);
+
+        mvc.perform(put(ruta).header("Authorization", profesional)
+                .contentType(MediaType.APPLICATION_JSON).content(rutina(2, version)))
+                .andExpect(status().isOk());
+        assertThat(version(ruta)).isEqualTo(version + 1);
+
+        // La otra ventana del profesional todavia tiene el formulario con la version vieja.
+        mvc.perform(put(ruta).header("Authorization", profesional)
+                .contentType(MediaType.APPLICATION_JSON).content(rutina(2, version)))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.codigo").value("CONFLICTO_VERSION"))
+                .andExpect(jsonPath("$.instance").value(ruta))
+                .andExpect(jsonPath("$.trace").doesNotExist());
+
+        mvc.perform(post(ruta + "/publicaciones?version=" + version).header("Authorization", profesional))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.codigo").value("CONFLICTO_VERSION"));
+        mvc.perform(post(ruta + "/publicaciones?version=" + (version + 1)).header("Authorization", profesional))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("PUBLICADA"));
+    }
+
+    @Test
+    void laRutinaExponeSuVersionEnElDetalleYEnElListado() throws Exception {
+        String ruta = crearRutina(2);
+        mvc.perform(get(ruta).header("Authorization", profesional))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(0));
+        mvc.perform(get("/api/v1/rutinas?estado=BORRADOR").header("Authorization", profesional))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.contenido[0].version").value(0));
+    }
+
+    @Test
+    void cincoIngresosFallidosDejanLaCuentaEnEsperaConRespuesta429() throws Exception {
+        String origen = "203.0.113.7";
+        for (int intento = 1; intento <= 5; intento++) {
+            mvc.perform(desde(origen).content(json(Map.of(
+                    "correo", "mariana.vargas@sira.local", "password", "incorrecto" + intento))))
+                    .andExpect(status().isUnauthorized());
+        }
+        mvc.perform(desde(origen).content(json(Map.of(
+                "correo", "mariana.vargas@sira.local", "password", "SiraDemo2026!"))))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.codigo").value("DEMASIADOS_INTENTOS"))
+                .andExpect(header().exists("Retry-After"));
+
+        // El freno es por cuenta y origen: otra maquina sigue pudiendo ingresar.
+        mvc.perform(desde("203.0.113.8").content(json(Map.of(
+                "correo", "mariana.vargas@sira.local", "password", "SiraDemo2026!"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void elChequeoDeSaludEsPublicoYSinDetallesYElRestoDeActuatorEstaCerrado() throws Exception {
+        mvc.perform(get("/actuator/health")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.components").doesNotExist())
+                .andExpect(jsonPath("$.details").doesNotExist());
+        for (String cerrado : new String[]{"/actuator", "/actuator/env", "/actuator/beans",
+                "/actuator/metrics", "/actuator/loggers", "/actuator/configprops"}) {
+            mvc.perform(get(cerrado)).andExpect(status().is4xxClientError());
+        }
+    }
+
+    @Test
+    void todaRespuestaLlevaLasCabecerasDeSeguridadYLaApiNoPermiteRecursosExternos() throws Exception {
+        mvc.perform(get("/api/v1/participantes").secure(true).header("Authorization", profesional))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Security-Policy",
+                        org.hamcrest.Matchers.containsString("default-src 'none'")))
+                .andExpect(header().string("Content-Security-Policy",
+                        org.hamcrest.Matchers.containsString("frame-ancestors 'none'")))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("X-Frame-Options", "DENY"))
+                .andExpect(header().string("Referrer-Policy", "strict-origin-when-cross-origin"))
+                .andExpect(header().string("Permissions-Policy",
+                        org.hamcrest.Matchers.containsString("camera=()")))
+                .andExpect(header().string("Strict-Transport-Security",
+                        org.hamcrest.Matchers.containsString("max-age=31536000")));
+        // Swagger UI necesita estilos en linea; su politica es propia y no contagia a la API.
+        mvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk())
+                .andExpect(header().string("Content-Security-Policy",
+                        org.hamcrest.Matchers.containsString("'unsafe-inline'")))
+                .andExpect(header().string("X-Frame-Options", "DENY"));
+    }
+
+    private MockHttpServletRequestBuilder desde(String origen) {
+        return post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .with(peticion -> { peticion.setRemoteAddr(origen); return peticion; });
+    }
+
+    private long version(String ruta) throws Exception {
+        var respuesta = mvc.perform(get(ruta).header("Authorization", profesional))
+                .andExpect(status().isOk()).andReturn();
+        return mapper.readTree(respuesta.getResponse().getContentAsString()).path("version").asLong();
+    }
+
+    private String rutina(int pasos, long version) {
+        return rutina(pasos).replace("]}", "],\"version\":" + version + "}");
     }
 
     private String login(String correo) throws Exception {

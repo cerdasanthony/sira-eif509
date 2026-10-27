@@ -17,6 +17,8 @@ import java.util.List;
 @Service
 public class AutenticacionService {
     private final UsuarioRepository usuarios;
+    private final ControlIntentosIngreso intentos;
+    private final EventosSeguridad eventos;
     private final PasswordEncoder passwords;
     private final JwtEncoder encoder;
     private final Clock reloj;
@@ -24,10 +26,13 @@ public class AutenticacionService {
     private final Duration duracion;
     private final String hashInexistente;
 
-    public AutenticacionService(UsuarioRepository usuarios, PasswordEncoder passwords, JwtEncoder encoder,
+    public AutenticacionService(UsuarioRepository usuarios, ControlIntentosIngreso intentos,
+                                EventosSeguridad eventos, PasswordEncoder passwords, JwtEncoder encoder,
                                 Clock reloj, @Value("${sira.jwt.issuer}") String issuer,
                                 @Value("${sira.jwt.duration}") Duration duracion) {
         this.usuarios = usuarios;
+        this.intentos = intentos;
+        this.eventos = eventos;
         this.passwords = passwords;
         this.encoder = encoder;
         this.reloj = reloj;
@@ -37,14 +42,25 @@ public class AutenticacionService {
     }
 
     @Transactional(readOnly = true)
-    public TokenSalida login(LoginEntrada entrada) {
-        var usuario = usuarios.findByCorreoIgnoreCase(entrada.correo().trim()).orElse(null);
+    public TokenSalida login(LoginEntrada entrada, String origen) {
+        String correo = entrada.correo().trim();
+        try {
+            intentos.exigirIntentosDisponibles(correo, origen);
+        } catch (cr.ac.una.sira.business.exception.DemasiadosIntentosException ex) {
+            eventos.ingresoBloqueado(correo, origen, ex.getSegundosRestantes());
+            throw ex;
+        }
+        var usuario = usuarios.findByCorreoIgnoreCase(correo).orElse(null);
         String hash = usuario == null || usuario.getPasswordHash() == null
                 ? hashInexistente : usuario.getPasswordHash();
         boolean coincide = passwords.matches(entrada.password(), hash);
         if (!coincide || usuario == null || !usuario.isActivo() || usuario.getPasswordHash() == null) {
+            intentos.registrarFallo(correo, origen);
+            eventos.ingresoFallido(correo, "credenciales invalidas", origen);
             throw new BadCredentialsException("Credenciales invalidas");
         }
+        intentos.registrarExito(correo, origen);
+        eventos.ingresoCorrecto(correo, origen);
         var ahora = reloj.instant();
         var claims = JwtClaimsSet.builder().issuer(issuer).subject(usuario.getId().toString())
                 .audience(List.of("sira-api")).issuedAt(ahora).expiresAt(ahora.plus(duracion))

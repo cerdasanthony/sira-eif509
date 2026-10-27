@@ -16,6 +16,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -58,6 +59,12 @@ public class Rutina {
 
     @Column(name = "publicado_en")
     private OffsetDateTime publicadoEn;
+
+    // Dos sesiones del profesional pueden guardar el mismo borrador a la vez.
+    // Hibernate compara esta columna al escribir y rechaza la copia vencida.
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "rutina_dia_semana", joinColumns = @JoinColumn(name = "rutina_id"))
@@ -139,6 +146,10 @@ public class Rutina {
 
     public OffsetDateTime getPublicadoEn() {
         return publicadoEn;
+    }
+
+    public long getVersion() {
+        return version;
     }
 
     public Set<Short> getDiasSemana() {

@@ -3,6 +3,7 @@ package cr.ac.una.sira.presentation.mvc;
 import cr.ac.una.sira.business.*;
 import cr.ac.una.sira.business.dto.ContratoApi.*;
 import cr.ac.una.sira.business.exception.*;
+import org.springframework.dao.OptimisticLockingFailureException;
 import cr.ac.una.sira.data.RolUsuario;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -25,13 +26,15 @@ public class AdminController {
     private final ParticipanteApiService participantes;
     private final UsuarioApiService usuarios;
     private final RutinaApiService rutinas;
+    private final EventosSeguridad eventos;
     private final String portalUrl;
 
     public AdminController(ParticipanteApiService participantes, UsuarioApiService usuarios, RutinaApiService rutinas,
-            @Value("${sira.portal-url}") String portalUrl) {
+            EventosSeguridad eventos, @Value("${sira.portal-url}") String portalUrl) {
         this.participantes = participantes;
         this.usuarios = usuarios;
         this.rutinas = rutinas;
+        this.eventos = eventos;
         this.portalUrl = portalUrl;
     }
 
@@ -54,6 +57,8 @@ public class AdminController {
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public String accesoDenegado(HttpServletRequest request, Model model) {
         boolean formularioVencido = request.getAttribute(WebAttributes.ACCESS_DENIED_403) instanceof CsrfException;
+        eventos.accesoDenegado(request.getMethod(), request.getRequestURI(),
+                formularioVencido ? "formulario sin CSRF vigente" : "sesion sin rol PROFESIONAL");
         model.addAttribute("formularioVencido", formularioVencido);
         return "admin/acceso-denegado";
     }
@@ -136,7 +141,7 @@ public class AdminController {
     @GetMapping("/admin/rutinas/nueva")
     public String nuevaRutina(Model model) {
         model.addAttribute("form", new RutinaFormulario(null, "", LocalTime.of(7, 0), LocalDate.now(),
-                null, Set.of((short)1, (short)2, (short)3, (short)4, (short)5), ""));
+                null, Set.of((short)1, (short)2, (short)3, (short)4, (short)5), "", null));
         model.addAttribute("id", null);
         return "admin/rutina-form";
     }
@@ -146,7 +151,8 @@ public class AdminController {
         var r = rutinas.obtener(id);
         model.addAttribute("form", new RutinaFormulario(r.participanteId(), r.nombre(), r.horaInicio(),
                 r.vigenciaDesde(), r.vigenciaHasta(), r.diasSemana(), r.pasos().stream()
-                    .map(p -> p.descripcion() + " | " + p.duracionEstimadaMin()).collect(Collectors.joining("\n"))));
+                    .map(p -> p.descripcion() + " | " + p.duracionEstimadaMin()).collect(Collectors.joining("\n")),
+                r.version()));
         model.addAttribute("id", id);
         return "admin/rutina-form";
     }
@@ -160,8 +166,9 @@ public class AdminController {
                 if (id == null) rutinas.crear(form.entrada()); else rutinas.actualizar(id, form.entrada());
                 flash.addFlashAttribute("mensaje", "Borrador guardado. Publiquelo cuando este listo.");
                 return "redirect:/admin/rutinas";
-            } catch (IllegalArgumentException | EntradaNegocioInvalidaException | ConflictoRecursoException | RecursoNoEncontradoException ex) {
-                result.reject("negocio", ex.getMessage());
+            } catch (IllegalArgumentException | EntradaNegocioInvalidaException | ConflictoRecursoException
+                    | RecursoNoEncontradoException | OptimisticLockingFailureException ex) {
+                result.reject("negocio", mensaje(ex));
             }
         }
         model.addAttribute("id", id);
@@ -169,13 +176,22 @@ public class AdminController {
     }
 
     @PostMapping("/admin/rutinas/{id}/publicar")
-    public String publicar(@PathVariable Long id, RedirectAttributes flash) {
+    public String publicar(@PathVariable Long id, @RequestParam(required = false) Long version,
+            RedirectAttributes flash) {
         try {
-            rutinas.publicar(id);
+            rutinas.publicar(id, version);
             flash.addFlashAttribute("mensaje", "Rutina publicada y disponible para el encargado");
-        } catch (ReglaNegocioException | ConflictoRecursoException ex) {
-            flash.addFlashAttribute("error", ex.getMessage());
+        } catch (ReglaNegocioException | ConflictoRecursoException | OptimisticLockingFailureException ex) {
+            flash.addFlashAttribute("error", mensaje(ex));
         }
         return "redirect:/admin/rutinas";
+    }
+
+    /** El conflicto de @Version llega sin texto util; el resto ya trae su explicacion. */
+    private String mensaje(Exception ex) {
+        return ex instanceof OptimisticLockingFailureException
+                ? "Otra persona guardo esta rutina mientras usted la editaba."
+                        + " Vuelva a abrirla y repita el cambio."
+                : ex.getMessage();
     }
 }

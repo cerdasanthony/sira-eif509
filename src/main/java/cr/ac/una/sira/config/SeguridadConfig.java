@@ -3,6 +3,11 @@ package cr.ac.una.sira.config;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import cr.ac.una.sira.presentation.ProblemasHttp;
 import cr.ac.una.sira.business.AccesoAdministracionService;
+import cr.ac.una.sira.business.ControlIntentosIngreso;
+import cr.ac.una.sira.business.EventosSeguridad;
+import org.springframework.security.authentication.LockedException;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -63,10 +68,31 @@ public class SeguridadConfig {
         return decoder;
     }
 
+    /**
+     * Swagger UI necesita estilos y scripts en linea propios, asi que lleva su propia
+     * politica de contenido en lugar de debilitar la del resto de la aplicacion.
+     */
+    @Bean
+    @Order(0)
+    SecurityFilterChain documentacion(HttpSecurity http) throws Exception {
+        return http.securityMatcher("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs",
+                        "/v3/api-docs/**", "/v3/api-docs.yaml")
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .headers(this::cabecerasComunes)
+                .headers(h -> h.contentSecurityPolicy(csp -> csp.policyDirectives(
+                        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+                                + "script-src 'self' 'unsafe-inline'; connect-src 'self'; "
+                                + "object-src 'none'; base-uri 'self'; frame-ancestors 'none'")))
+                .build();
+    }
+
     @Bean
     @Order(1)
     SecurityFilterChain administracion(HttpSecurity http, UserDetailsService cuentas,
                                       PasswordEncoder passwords, AccesoAdministracionService accesos,
+                                      ControlIntentosIngreso intentos, EventosSeguridad eventos,
                                       @Value("${sira.cors.origins:}") String origenes,
                                       @Value("${sira.portal-url}") String portalUrl) throws Exception {
         var provider = new DaoAuthenticationProvider();
@@ -74,19 +100,43 @@ public class SeguridadConfig {
         provider.setPasswordEncoder(passwords);
         return http.securityMatcher("/admin/**", "/css/**")
                 .addFilterBefore(new ContinuarAdministracionFilter(accesos, origenes, portalUrl), CsrfFilter.class)
-                .authenticationProvider(provider)
+                .authenticationProvider(new ProveedorIngresoLimitado(provider, intentos, eventos))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/admin/login", "/admin/acceso-denegado", "/css/**").permitAll()
                         .anyRequest().hasRole("PROFESIONAL"))
                 .formLogin(form -> form.loginPage("/admin/login")
                         .loginProcessingUrl("/admin/login").usernameParameter("correo")
                         .defaultSuccessUrl("/admin/participantes", true)
-                        .failureUrl("/admin/login?error").permitAll())
+                        .failureHandler((peticion, respuesta, error) -> respuesta.sendRedirect(
+                                peticion.getContextPath() + "/admin/login"
+                                        + (error instanceof LockedException ? "?bloqueado" : "?error")))
+                        .permitAll())
                 .logout(logout -> logout.logoutUrl("/admin/logout")
                         .logoutSuccessUrl(portalUrl))
                 .exceptionHandling(errors -> errors.accessDeniedPage("/admin/acceso-denegado"))
                 .csrf(Customizer.withDefaults())
+                .headers(this::cabecerasComunes)
+                .headers(h -> h.contentSecurityPolicy(csp -> csp.policyDirectives(
+                        "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
+                                + "connect-src 'self'; object-src 'none'; base-uri 'self'; "
+                                + "form-action 'self'; frame-ancestors 'none'")))
                 .build();
+    }
+
+    /**
+     * Cabeceras que toda respuesta debe llevar: HSTS para no volver a texto plano,
+     * nada de marcos ajenos, sin adivinar tipos MIME, sin referente hacia otros sitios
+     * y sin permisos de camara, microfono ni ubicacion.
+     */
+    private void cabecerasComunes(HeadersConfigurer<HttpSecurity> cabeceras) {
+        cabeceras.frameOptions(marcos -> marcos.deny())
+                .contentTypeOptions(Customizer.withDefaults())
+                .httpStrictTransportSecurity(hsts -> hsts
+                        .includeSubDomains(true).maxAgeInSeconds(31536000))
+                .referrerPolicy(referente -> referente.policy(
+                        ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
+        cabeceras.permissionsPolicy(permisos -> permisos.policy(
+                "camera=(), microphone=(), geolocation=(), payment=(), usb=()"));
     }
 
     @Bean
@@ -112,7 +162,8 @@ public class SeguridadConfig {
 
     @Bean
     @Order(2)
-    SecurityFilterChain seguridad(HttpSecurity http, ProblemasHttp problemas) throws Exception {
+    SecurityFilterChain seguridad(HttpSecurity http, ProblemasHttp problemas,
+                                  EventosSeguridad eventos) throws Exception {
         var authorities = new JwtGrantedAuthoritiesConverter();
         authorities.setAuthoritiesClaimName("roles");
         authorities.setAuthorityPrefix("ROLE_");
@@ -134,16 +185,31 @@ public class SeguridadConfig {
                             .hasRole("PROFESIONAL")
                         .anyRequest().denyAll())
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint((req, res, ex) -> problemas.escribir(req, res, 401,
-                                "AUTENTICACION_REQUERIDA", "Se requiere un token Bearer valido"))
-                        .accessDeniedHandler((req, res, ex) -> problemas.escribir(req, res, 403,
-                                "ACCESO_DENEGADO", "El rol no permite esta operacion")))
+                        .authenticationEntryPoint((req, res, ex) -> {
+                            eventos.autenticacionRequerida(req.getMethod(), req.getRequestURI(), "sin token Bearer");
+                            problemas.escribir(req, res, 401,
+                                    "AUTENTICACION_REQUERIDA", "Se requiere un token Bearer valido");
+                        })
+                        .accessDeniedHandler((req, res, ex) -> {
+                            eventos.accesoDenegado(req.getMethod(), req.getRequestURI(), "rol insuficiente");
+                            problemas.escribir(req, res, 403,
+                                    "ACCESO_DENEGADO", "El rol no permite esta operacion");
+                        }))
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter))
-                        .authenticationEntryPoint((req, res, ex) -> problemas.escribir(req, res, 401,
-                                "TOKEN_INVALIDO", "El token no es valido o ha expirado"))
-                        .accessDeniedHandler((req, res, ex) -> problemas.escribir(req, res, 403,
-                                "ACCESO_DENEGADO", "El rol no permite esta operacion")))
+                        .authenticationEntryPoint((req, res, ex) -> {
+                            eventos.autenticacionRequerida(req.getMethod(), req.getRequestURI(), "token invalido");
+                            problemas.escribir(req, res, 401,
+                                    "TOKEN_INVALIDO", "El token no es valido o ha expirado");
+                        })
+                        .accessDeniedHandler((req, res, ex) -> {
+                            eventos.accesoDenegado(req.getMethod(), req.getRequestURI(), "rol insuficiente");
+                            problemas.escribir(req, res, 403,
+                                    "ACCESO_DENEGADO", "El rol no permite esta operacion");
+                        }))
+                .headers(this::cabecerasComunes)
+                .headers(h -> h.contentSecurityPolicy(csp -> csp.policyDirectives(
+                        "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")))
                 .build();
     }
 }

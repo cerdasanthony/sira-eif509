@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [ main ]
 
+# Solo lectura del repositorio: el workflow no necesita escribir nada en GitHub.
+permissions:
+  contents: read
+
+# Un despliegue a la vez; si llegan dos push seguidos, gana el ultimo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   spa:
     name: Probar y compilar SPA
@@ -23,6 +32,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+      - name: Revisar vulnerabilidades de las dependencias publicadas
+        run: npm audit --omit=dev --audit-level=high
 
   build:
     name: Compilar y probar
@@ -45,6 +57,9 @@ jobs:
       - name: Compilar y correr pruebas
         run: ./gradlew build --no-daemon
 
+      - name: Exigir cobertura minima en la capa de negocio
+        run: ./gradlew jacocoTestCoverageVerification --no-daemon
+
       - name: Exigir pruebas reales de integracion sin omisiones
         run: |
           python3 - <<'PY'
@@ -56,6 +71,23 @@ jobs:
               suite = ET.parse(path).getroot()
               assert int(suite.get('tests', 0)) > 0, path
               assert int(suite.get('skipped', 0)) == 0, f'Pruebas omitidas: {path}'
+          PY
+
+      - name: Exigir al menos 40 pruebas en verde
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import xml.etree.ElementTree as ET
+          total = fallos = omitidas = 0
+          for path in pathlib.Path('build/test-results/test').glob('TEST-*.xml'):
+              suite = ET.parse(path).getroot()
+              total += int(suite.get('tests', 0))
+              fallos += int(suite.get('failures', 0)) + int(suite.get('errors', 0))
+              omitidas += int(suite.get('skipped', 0))
+          verdes = total - fallos - omitidas
+          print(f'Pruebas: {total} totales, {verdes} en verde, {fallos} con fallo, {omitidas} omitidas')
+          assert fallos == 0, 'Hay pruebas con fallo'
+          assert verdes >= 40, f'Se requieren al menos 40 pruebas en verde y hay {verdes}'
           PY
 
       - name: Publicar reporte de pruebas
@@ -73,3 +105,54 @@ jobs:
           name: reporte-cobertura-jacoco
           path: build/reports/jacoco/test
           if-no-files-found: ignore
+
+  desplegar:
+    name: Desplegar a produccion
+    needs: [ build, spa ]
+    # Solo desde main, solo en push y solo si la verificacion completa paso.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: produccion
+    steps:
+      - name: Comprobar que los secretos del despliegue estan configurados
+        env:
+          HOOK_API: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+          HOOK_SPA: ${{ secrets.RENDER_DEPLOY_HOOK_SPA }}
+          URL_SALUD: ${{ secrets.SIRA_HEALTH_URL }}
+        run: |
+          for nombre in HOOK_API HOOK_SPA URL_SALUD; do
+            if [ -z "${!nombre}" ]; then
+              echo "Falta el secreto $nombre en GitHub Secrets" >&2
+              exit 1
+            fi
+          done
+
+      - name: Pedir el despliegue de la API
+        env:
+          HOOK_API: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+        # --fail-with-body corta el workflow si la plataforma responde con error.
+        # La URL del hook es un secreto: nunca se imprime.
+        run: curl --silent --show-error --fail-with-body --output /dev/null "$HOOK_API"
+
+      - name: Pedir el despliegue de la SPA
+        env:
+          HOOK_SPA: ${{ secrets.RENDER_DEPLOY_HOOK_SPA }}
+        run: curl --silent --show-error --fail-with-body --output /dev/null "$HOOK_SPA"
+
+      - name: Esperar a que el chequeo de salud responda UP
+        env:
+          URL_SALUD: ${{ secrets.SIRA_HEALTH_URL }}
+        # El plan gratuito reconstruye y despierta con lentitud: hasta 15 minutos.
+        run: |
+          for intento in $(seq 1 90); do
+            cuerpo=$(curl --silent --max-time 20 "$URL_SALUD" || true)
+            case "$cuerpo" in
+              *'"status":"UP"'*)
+                echo "La API respondio UP en el intento $intento"
+                exit 0
+                ;;
+            esac
+            sleep 10
+          done
+          echo "El chequeo de salud no respondio UP despues del despliegue" >&2
+          exit 1

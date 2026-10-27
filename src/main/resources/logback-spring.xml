@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Observabilidad del Laboratorio 7.
+
+  En produccion cada linea sale a la salida estandar como un objeto JSON, que es lo
+  que recoge el agregador de la plataforma: asi se puede buscar por campo (evento,
+  cuenta, ruta) en vez de por texto libre. En desarrollo se conserva el formato
+  legible de Spring Boot. Los eventos de seguridad viven en el logger
+  cr.ac.una.sira.seguridad y nunca llevan passwords, hashes ni tokens.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProfile name="prod">
+        <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="ch.qos.logback.classic.encoder.JsonEncoder">
+                <withSequenceNumber>false</withSequenceNumber>
+                <withNanoseconds>false</withNanoseconds>
+                <withContext>false</withContext>
+                <withMessage>false</withMessage>
+                <withArguments>false</withArguments>
+                <withFormattedMessage>true</withFormattedMessage>
+                <withMDC>true</withMDC>
+                <withKeyValuePairs>true</withKeyValuePairs>
+                <withThrowable>true</withThrowable>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!prod">
+        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- Los hechos de seguridad se conservan aunque se suba el umbral general. -->
+    <logger name="cr.ac.una.sira.seguridad" level="INFO"/>
+</configuration>

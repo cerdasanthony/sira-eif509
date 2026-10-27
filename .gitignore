@@ -49,3 +49,6 @@ spa/.vite/
 !.env.example
 *.local
 tmp/
+
+### Herramientas de sesiones remotas ###
+.codex-remote-attachments/

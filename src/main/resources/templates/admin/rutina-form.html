@@ -1,5 +1,6 @@
 <!DOCTYPE html><html lang="es" xmlns:th="http://www.thymeleaf.org"><head th:replace="~{admin/fragments :: head('Rutina')}"></head><body><header th:replace="~{admin/fragments :: navegacion('rutinas')}"></header><main class="narrow" id="contenido"><a th:href="@{/admin/rutinas}">← Rutinas</a><h1 th:text="${id == null ? 'Nueva rutina' : 'Editar borrador'}"></h1>
 <form class="panel" th:action="@{/admin/rutinas/guardar(id=${id})}" th:object="${form}" method="post"><div th:replace="~{admin/fragments :: errores}"></div>
+<input type="hidden" th:field="*{version}">
 <label>ID del participante<input type="number" th:field="*{participanteId}" min="1" th:readonly="${id != null}" required></label><label>Nombre de la rutina<input th:field="*{nombre}" maxlength="120" required></label>
 <div class="columns"><label>Hora de inicio<input type="time" th:field="*{horaInicio}" required></label><label>Vigente desde<input type="date" th:field="*{vigenciaDesde}" required></label><label>Vigente hasta (opcional)<input type="date" th:field="*{vigenciaHasta}"></label></div>
 <fieldset><legend>Días de la semana</legend><div class="days"><label class="check" th:each="dia, i : ${ {'Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'} }"><input type="checkbox" th:field="*{diasSemana}" th:value="${i.count}"><span th:text="${dia}"></span></label></div></fieldset>

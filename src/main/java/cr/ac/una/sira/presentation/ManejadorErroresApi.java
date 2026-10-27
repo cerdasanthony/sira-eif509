@@ -5,7 +5,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import cr.ac.una.sira.business.EventosSeguridad;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -21,7 +23,12 @@ import java.util.Map;
 public class ManejadorErroresApi {
     private static final Logger LOG = LoggerFactory.getLogger(ManejadorErroresApi.class);
     private final ProblemasHttp problemas;
-    public ManejadorErroresApi(ProblemasHttp problemas) { this.problemas = problemas; }
+    private final EventosSeguridad eventos;
+
+    public ManejadorErroresApi(ProblemasHttp problemas, EventosSeguridad eventos) {
+        this.problemas = problemas;
+        this.eventos = eventos;
+    }
 
     @ExceptionHandler(RecursoNoEncontradoException.class)
     ResponseEntity<ProblemDetail> noEncontrado(RecursoNoEncontradoException ex, HttpServletRequest req) {
@@ -35,9 +42,31 @@ public class ManejadorErroresApi {
 
     @ExceptionHandler({ConflictoRecursoException.class, DataIntegrityViolationException.class})
     ResponseEntity<ProblemDetail> conflicto(Exception ex, HttpServletRequest req) {
+        if (ex instanceof ConflictoVersionException conflicto) {
+            eventos.conflictoDeVersion(req.getMethod(), req.getRequestURI());
+            return respuesta(409, "CONFLICTO_VERSION", conflicto.getMessage(), req);
+        }
         String detalle = ex instanceof ConflictoRecursoException ? ex.getMessage()
                 : "La operacion entra en conflicto con los datos existentes";
         return respuesta(409, "CONFLICTO_RECURSO", detalle, req);
+    }
+
+    /** Dos transacciones escribieron la misma fila; @Version rechazo la segunda. */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ResponseEntity<ProblemDetail> conflictoDeConcurrencia(
+            OptimisticLockingFailureException ex, HttpServletRequest req) {
+        eventos.conflictoDeVersion(req.getMethod(), req.getRequestURI());
+        return respuesta(409, "CONFLICTO_VERSION",
+                "Otra persona guardo este recurso mientras usted lo editaba."
+                        + " Vuelva a abrirlo y repita el cambio.", req);
+    }
+
+    @ExceptionHandler(DemasiadosIntentosException.class)
+    ResponseEntity<ProblemDetail> demasiadosIntentos(
+            DemasiadosIntentosException ex, HttpServletRequest req) {
+        return ResponseEntity.status(429)
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(ex.getSegundosRestantes()))
+                .body(problemas.crear(429, "DEMASIADOS_INTENTOS", ex.getMessage(), req.getRequestURI()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -57,12 +86,14 @@ public class ManejadorErroresApi {
 
     @ExceptionHandler(AuthenticationException.class)
     ResponseEntity<ProblemDetail> autenticacion(AuthenticationException ex, HttpServletRequest req) {
+        eventos.ingresoFallido(null, "credenciales invalidas", req.getRemoteAddr());
         return ResponseEntity.status(401).header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
                 .body(problemas.crear(401, "CREDENCIALES_INVALIDAS", "Credenciales invalidas", req.getRequestURI()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ProblemDetail> prohibido(AccessDeniedException ex, HttpServletRequest req) {
+        eventos.accesoDenegado(req.getMethod(), req.getRequestURI(), "regla de propiedad o rol");
         return respuesta(403, "ACCESO_DENEGADO", "No tiene permiso para este recurso u operacion", req);
     }
 

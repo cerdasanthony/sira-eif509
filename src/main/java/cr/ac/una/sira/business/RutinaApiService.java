@@ -42,7 +42,8 @@ public class RutinaApiService {
                 RutinaSpecifications.conFiltros(participanteId, estado, vigenteEn)),
                 Paginacion.validar(pageable, "id", "nombre", "horaInicio", "vigenciaDesde", "estado"))
                 .map(r -> new RutinaResumen(r.getId(), r.getParticipante().getId(), r.getNombre(),
-                        r.getHoraInicio(), r.getVigenciaDesde(), r.getVigenciaHasta(), r.getEstado())));
+                        r.getHoraInicio(), r.getVigenciaDesde(), r.getVigenciaHasta(), r.getEstado(),
+                        r.getVersion())));
     }
 
     public Rutina obtenerEntidad(Long id) {
@@ -73,6 +74,7 @@ public class RutinaApiService {
     public RutinaSalida actualizar(Long id, RutinaEntrada entrada) {
         acceso.exigirRol(RolUsuario.PROFESIONAL);
         Rutina rutina = obtenerEntidad(id);
+        exigirVersionVigente(rutina, entrada.version());
         exigirBorrador(rutina);
         if (!rutina.getParticipante().getId().equals(entrada.participanteId())) {
             throw new ConflictoRecursoException("No se puede cambiar el participante de una rutina");
@@ -97,11 +99,26 @@ public class RutinaApiService {
     }
 
     @Transactional
-    public PublicarRutinaSalida publicar(Long id) {
+    public PublicarRutinaSalida publicar(Long id) { return publicar(id, null); }
+
+    @Transactional
+    public PublicarRutinaSalida publicar(Long id, Long version) {
         Usuario profesional = acceso.exigirRol(RolUsuario.PROFESIONAL);
         Rutina rutina = obtenerEntidad(id);
+        exigirVersionVigente(rutina, version);
         exigirBorrador(rutina);
         return publicacion.publicar(new PublicarRutinaEntrada(id, profesional.getId()));
+    }
+
+    /**
+     * El cliente envia la version que leyo al abrir el borrador. Si no coincide con la
+     * almacenada, otra sesion ya guardo y esta copia escribiria encima sin verlo.
+     * La carrera que ocurre despues de esta comprobacion la detecta @Version al escribir.
+     */
+    private void exigirVersionVigente(Rutina rutina, Long version) {
+        if (version != null && version != rutina.getVersion()) {
+            throw new ConflictoVersionException("la rutina");
+        }
     }
 
     private void exigirBorrador(Rutina rutina) {
@@ -128,6 +145,7 @@ public class RutinaApiService {
         return new RutinaSalida(r.getId(), r.getParticipante().getId(), r.getNombre(), r.getHoraInicio(),
                 r.getVigenciaDesde(), r.getVigenciaHasta(), r.getEstado(), Set.copyOf(r.getDiasSemana()),
                 r.getPasos().stream().map(p -> new PasoSalida(p.getId(), p.getOrden(), p.getDescripcion(),
-                        p.getDuracionEstimadaMin(), p.getPictograma())).toList(), r.getPublicadoEn());
+                        p.getDuracionEstimadaMin(), p.getPictograma())).toList(), r.getPublicadoEn(),
+                r.getVersion());
     }
 }
