@@ -75,10 +75,15 @@ Swagger UI: <http://localhost:8080/swagger-ui.html>.
 | `PUT /api/v1/rutinas/{id}` | Acepta `version`; 409 `CONFLICTO_VERSION` si otra sesion guardo antes |
 | `POST /api/v1/rutinas/{id}/publicaciones?version=N` | Misma proteccion al publicar |
 
-Con el perfil `demo`, iniciar sesion con `mariana.vargas@sira.local` (PROFESIONAL)
-o `laura.mendez@sira.local` (ENCARGADO), password `SiraDemo2026!`.
-Enviar `Authorization: Bearer <accessToken>` en cada llamada a `/api/v1`.
-El perfil normal no configura contrasenas de demostracion.
+**Solo en local, con el perfil `demo` o `dev`**, iniciar sesion con
+`mariana.vargas@sira.local` (PROFESIONAL) o `laura.mendez@sira.local` (ENCARGADO),
+password `SiraDemo2026!`. Enviar `Authorization: Bearer <accessToken>` en cada llamada
+a `/api/v1`.
+
+Esa password **no sirve en el sistema desplegado**: el perfil `prod` no activa las
+credenciales de demostracion y `ProduccionConfig` rechaza el arranque si alguna cuenta
+conserva la password demo. Las del sistema publicado se explican en
+[Credenciales del sistema desplegado](#credenciales-del-sistema-desplegado).
 
 ## Estructura
 
@@ -212,6 +217,31 @@ Las variables `VITE_*` son publicas en el JavaScript del navegador. Solo
 cuando las cuentas de ejemplo aun no tienen hash; cambiar estas variables despues
 no cambia passwords ya guardadas. El encargado puede cambiar su password con
 `PUT /api/v1/usuarios/me`; para el profesional se usa el mismo endpoint.
+
+### Credenciales del sistema desplegado
+
+Las cuentas publicadas son las mismas dos (`mariana.vargas@sira.local` como PROFESIONAL
+y `laura.mendez@sira.local` como ENCARGADO), pero su password es el valor que tenian
+`SIRA_PROFESIONAL_PASSWORD` y `SIRA_ENCARGADO_PASSWORD` **la primera vez que la API
+arranco con esas cuentas sin hash**. No es `SiraDemo2026!` y no esta en Git: se consulta
+en las variables privadas del servicio API en el panel de la plataforma.
+
+Si el ingreso responde «Credenciales invalidas» con la password que figura hoy en esas
+variables, es porque se cambiaron despues del primer arranque: `ProduccionConfig` solo
+las aplica mientras `password_hash` es nulo. Para volver a sincronizarlas:
+
+1. Confirmar el valor actual de la variable en el panel del servicio API.
+2. En la consola de la base de datos gestionada, borrar el hash de la cuenta:
+
+```sql
+UPDATE usuario SET password_hash = NULL WHERE correo = 'mariana.vargas@sira.local';
+```
+
+3. Reiniciar el servicio API. Al arrancar, `ProduccionConfig` vuelve a aplicar el valor
+   actual de la variable.
+
+Con la sesion ya abierta, cualquiera de los dos roles puede cambiar su propia password
+con `PUT /api/v1/usuarios/me`, que es la via normal y no requiere tocar la base.
 
 El [procedimiento de despliegue](docs/lab6-presentacion-despliegue.md#despliegue-en-render-y-atlas)
 utiliza `Dockerfile` y `render.yaml`. El sistema se publico y verifico el 22 de
