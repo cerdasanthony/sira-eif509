@@ -72,6 +72,7 @@ Swagger UI: <http://localhost:8080/swagger-ui.html>.
 | `POST /api/v1/ejecuciones/cierres` | Cierre transaccional, 201 + Location |
 | `GET /api/v1/ejecuciones` | Historial propio por fechas y adherencia |
 | `GET /actuator/health` | Estado de salud publico, sin detalles internos |
+| `GET /actuator/info` | Commit desplegado; lo usa la CI para verificar el despliegue |
 | `PUT /api/v1/rutinas/{id}` | Acepta `version`; 409 `CONFLICTO_VERSION` si otra sesion guardo antes |
 | `POST /api/v1/rutinas/{id}/publicaciones?version=N` | Misma proteccion al publicar |
 
@@ -120,7 +121,7 @@ compila y prueba la SPA y el backend en una maquina Linux limpia con Java 21, ex
 cobertura minima de JaCoCo en la capa de negocio, exige que las pruebas con PostgreSQL
 real no se omitan y exige al menos 40 pruebas en verde. Solo cuando todo eso pasa, y
 solo desde `main`, el trabajo `desplegar` llama a los deploy hooks de la plataforma y
-espera a que `/actuator/health` responda `UP`. Los tres secretos del despliegue viven en
+espera a que la API responda `UP` publicando el commit recien verificado. Los tres secretos del despliegue viven en
 GitHub Secrets y nunca se imprimen. Dependabot revisa las dependencias cada semana.
 El estado se ve en el badge de arriba.
 
@@ -179,7 +180,8 @@ Toda respuesta lleva HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`
 aparte para Swagger UI. El ingreso admite cinco intentos fallidos por cuenta y origen; a
 partir del sexto la API responde `429` con `Retry-After` y el panel MVC muestra un aviso.
 
-`/actuator/health` es el unico endpoint de Actuator expuesto, sin detalles ni componentes.
+De Actuator solo se exponen `/actuator/health`, sin detalles ni componentes, y
+`/actuator/info`, que publica unicamente el commit desplegado.
 En el perfil `prod` los registros salen a la salida estandar en JSON
 (`src/main/resources/logback-spring.xml`), y el logger `cr.ac.una.sira.seguridad` publica
 los ingresos fallidos, las cuentas en espera, los accesos denegados y los conflictos de

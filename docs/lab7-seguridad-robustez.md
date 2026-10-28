@@ -17,6 +17,7 @@ correcciones, está en [AUDITORIA-SEGURIDAD.md](../AUDITORIA-SEGURIDAD.md).
 | Conflicto como 409 en el manejador global | `ManejadorErroresApi.conflictoDeConcurrencia`, Problem Details con código `CONFLICTO_VERSION` |
 | Prueba que provoca el conflicto | `BloqueoOptimistaRutinaTest`, `BloqueoOptimistaIntegracionTest` y las pruebas HTTP y MVC listadas en la auditoría |
 | Actuator con `/actuator/health` sin detalles | `application.properties`; prueba `elChequeoDeSaludEsPublicoYSinDetallesYElRestoDeActuatorEstaCerrado` |
+| Despliegue verificado contra la version nueva | `/actuator/info` publica `RENDER_GIT_COMMIT` y el pipeline espera ese SHA |
 | Registros estructurados | [`logback-spring.xml`](../src/main/resources/logback-spring.xml), JSON a la salida estándar en el perfil `prod` |
 | Eventos de seguridad registrados | `EventosSeguridad`: ingresos fallidos, cuentas en espera, accesos denegados y conflictos, sin passwords ni tokens |
 | Al menos 40 pruebas en verde | 135 en la CI; el pipeline falla si bajan de 40 |

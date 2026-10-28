@@ -139,20 +139,33 @@ jobs:
           HOOK_SPA: ${{ secrets.RENDER_DEPLOY_HOOK_SPA }}
         run: curl --silent --show-error --fail-with-body --output /dev/null "$HOOK_SPA"
 
-      - name: Esperar a que el chequeo de salud responda UP
+      - name: Esperar a que la version nueva responda UP
         env:
           URL_SALUD: ${{ secrets.SIRA_HEALTH_URL }}
+          COMMIT: ${{ github.sha }}
+        # No basta con que algo responda UP: mientras la plataforma reconstruye, la
+        # instancia anterior sigue en pie y contestaria que todo esta bien. Por eso se
+        # espera a que /actuator/info publique el commit que acaba de pasar la CI.
         # El plan gratuito reconstruye y despierta con lentitud: hasta 15 minutos.
         run: |
+          URL_INFO="${URL_SALUD%/health}/info"
           for intento in $(seq 1 90); do
-            cuerpo=$(curl --silent --max-time 20 "$URL_SALUD" || true)
-            case "$cuerpo" in
+            salud=$(curl --silent --max-time 20 "$URL_SALUD" || true)
+            info=$(curl --silent --max-time 20 "$URL_INFO" || true)
+            case "$salud" in
               *'"status":"UP"'*)
-                echo "La API respondio UP en el intento $intento"
-                exit 0
+                case "$info" in
+                  *"$COMMIT"*)
+                    echo "El commit $COMMIT respondio UP en el intento $intento"
+                    exit 0
+                    ;;
+                esac
                 ;;
             esac
             sleep 10
           done
-          echo "El chequeo de salud no respondio UP despues del despliegue" >&2
+          echo "::error::La version $COMMIT no llego a responder UP despues del despliegue" >&2
+          echo "Ultima respuesta de salud: $salud" >&2
+          echo "Ultima respuesta de info:  $info" >&2
+          echo "Si info no trae el commit, revise que la plataforma inyecte RENDER_GIT_COMMIT." >&2
           exit 1

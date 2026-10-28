@@ -35,7 +35,7 @@ Categorías revisadas una por una contra el sistema. Fuente: OWASP Foundation (2
 | Categoría | Qué se revisó en SIRA | Hallazgo y riesgo | Corrección aplicada | Commit |
 |---|---|---|---|---|
 | A01 Control de acceso roto | Propiedad del recurso en API y MVC, separación de roles PROFESIONAL/ENCARGADO, acceso del encargado solo a rutinas publicadas, aislamiento entre la sesión MVC y el JWT | **Sin hallazgo.** Ver fila 1 de la sección 1. La sesión MVC no autentica `/api/v1` y el JWT no abre `/admin`; las dos reglas tienen prueba | — | — |
-| A02 Configuración incorrecta de seguridad | Cabeceras de respuesta, Actuator, Swagger, CORS, cookies de sesión, límites de la petición | **Hallazgo.** Faltaban `Content-Security-Policy`, `Referrer-Policy`, `Permissions-Policy` y un `Strict-Transport-Security` explícito; `/actuator` publicaba el índice de endpoints; no había límite de tamaño de cuerpo ni de cabeceras. Riesgo medio: sin CSP, cualquier inyección futura en una vista podría cargar y ejecutar código de otro dominio, y una petición enorme podía agotar la memoria del contenedor gratuito | `cabecerasComunes` en `SeguridadConfig` aplica HSTS de un año con subdominios, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` y `Permissions-Policy` sin cámara, micrófono, ubicación, pago ni USB. CSP por cadena: `default-src 'none'` en la API, `default-src 'self'` sin `unsafe-inline` en el panel MVC y una política propia para Swagger UI, que sí necesita estilos en línea. En `render.yaml`, CSP, HSTS y las mismas cabeceras para la SPA. `management.endpoints.web.discovery.enabled=false` y límites de tamaño en `application.properties`. Pruebas: `todaRespuestaLlevaLasCabecerasDeSeguridadYLaApiNoPermiteRecursosExternos`, `elPanelMvcSirveUnaPoliticaDeContenidoEstrictaYLasDemasCabeceras`, `elChequeoDeSaludEsPublicoYSinDetallesYElRestoDeActuatorEstaCerrado` | [`feda6ef`](https://github.com/cerdasanthony/sira-eif509/commit/feda6ef32535c2b94df08afcb113abc9faf27b27) |
+| A02 Configuración incorrecta de seguridad | Cabeceras de respuesta, Actuator, Swagger, CORS, cookies de sesión, límites de la petición | **Hallazgo.** Faltaban `Content-Security-Policy`, `Referrer-Policy`, `Permissions-Policy` y un `Strict-Transport-Security` explícito; `/actuator` publicaba el índice de endpoints; no había límite de tamaño de cuerpo ni de cabeceras. Riesgo medio: sin CSP, cualquier inyección futura en una vista podría cargar y ejecutar código de otro dominio, y una petición enorme podía agotar la memoria del contenedor gratuito | `cabecerasComunes` en `SeguridadConfig` aplica HSTS de un año con subdominios, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` y `Permissions-Policy` sin cámara, micrófono, ubicación, pago ni USB. CSP por cadena: `default-src 'none'` en la API, `default-src 'self'` sin `unsafe-inline` en el panel MVC y una política propia para Swagger UI, que sí necesita estilos en línea. En `render.yaml`, CSP, HSTS y las mismas cabeceras para la SPA. `management.endpoints.web.discovery.enabled=false`, límites de tamaño en `application.properties` y, de Actuator, solo `health` e `info`. Pruebas: `todaRespuestaLlevaLasCabecerasDeSeguridadYLaApiNoPermiteRecursosExternos`, `elPanelMvcSirveUnaPoliticaDeContenidoEstrictaYLasDemasCabeceras`, `elChequeoDeSaludEsPublicoYSinDetallesYElRestoDeActuatorEstaCerrado` | [`feda6ef`](https://github.com/cerdasanthony/sira-eif509/commit/feda6ef32535c2b94df08afcb113abc9faf27b27) |
 | A03 Fallas en la cadena de suministro | Dependencias de Gradle y npm, acciones del pipeline, imagen base del Dockerfile | **Hallazgo.** Ver fila 8 de la sección 1 | Dependabot y `npm audit` en el pipeline | [`feda6ef`](https://github.com/cerdasanthony/sira-eif509/commit/feda6ef32535c2b94df08afcb113abc9faf27b27) |
 | A04 Fallas criptográficas | Almacenamiento de passwords, clave y algoritmo del JWT, TLS en tránsito y hacia la base de datos | **Sin hallazgo.** BCrypt para las passwords; HS256 con clave de 32 bytes o más tomada de `SIRA_JWT_SECRET`; `sslmode=require` en la URL JDBC de producción; TLS en la cadena de Atlas; cookies de sesión `Secure`, `HttpOnly` y `SameSite=Lax`. El login compara siempre contra un hash, incluso cuando la cuenta no existe, para no revelar por tiempo qué correos están registrados | Se reforzó con HSTS, que impide la primera conexión en texto plano (ver A02) | [`feda6ef`](https://github.com/cerdasanthony/sira-eif509/commit/feda6ef32535c2b94df08afcb113abc9faf27b27) |
 | A05 Inyección | Consultas JPQL y Criteria, escapado en las vistas Thymeleaf y React | **Sin hallazgo.** Ver fila 3 de la sección 1. Thymeleaf escapa con `th:text` y no hay un solo `th:utext` en las plantillas; React no usa `dangerouslySetInnerHTML`. La CSP agregada en A02 limita el daño de una inyección futura | — | — |
@@ -101,7 +101,7 @@ Secretos del pipeline, configurados en **GitHub Secrets** (aquí solo sus nombre
 |---|---|
 | `RENDER_DEPLOY_HOOK_API` | URL privada que dispara el despliegue del servicio de la API |
 | `RENDER_DEPLOY_HOOK_SPA` | URL privada que dispara el despliegue del sitio estático de la SPA |
-| `SIRA_HEALTH_URL` | URL pública de `/actuator/health`, usada para confirmar el despliegue |
+| `SIRA_HEALTH_URL` | URL pública de `/actuator/health`; de ella sale también la de `/actuator/info` |
 
 El trabajo falla de inmediato si falta alguno, y ninguna de las tres se imprime en el log.
 
@@ -122,10 +122,17 @@ gh api -X PUT repos/cerdasanthony/sira-eif509/branches/main/protection \
 
 ## 5. Observabilidad
 
-- `/actuator/health` es el único endpoint de Actuator expuesto, con
-  `show-details=never`, `show-components=never` y el índice desactivado. Devuelve
-  `{"status":"UP"}` y nada más. La plataforma lo usa como health check y el pipeline
-  lo consulta después de desplegar.
+- De Actuator solo se exponen dos endpoints, con el índice desactivado.
+  `/actuator/health` va con `show-details=never` y `show-components=never`: devuelve
+  `{"status":"UP"}` y nada más. La plataforma lo usa como health check.
+- `/actuator/info` publica un único dato, `despliegue.commit`, que es el SHA que la
+  plataforma inyecta en `RENDER_GIT_COMMIT`. Hace falta porque un `UP` a secas no
+  prueba nada: mientras la plataforma reconstruye, la instancia anterior sigue en pie
+  y responde que todo está bien, así que el pipeline daría por desplegada una versión
+  que todavía no existe. Esperando ese commit, el despliegue queda verificado de
+  verdad. El repositorio es público, de modo que el SHA no revela nada que no esté ya
+  en GitHub, y la prueba `infoPublicaSoloElCommitDesplegadoParaQueLaCiVerifiqueLaVersion`
+  comprueba que el contribuidor de entorno no arrastre ningún otro dato.
 - Los registros salen a la salida estándar. En producción, `logback-spring.xml` los
   escribe en JSON con el `JsonEncoder` de Logback, con nivel, logger, mensaje y los pares
   clave/valor de cada evento; en desarrollo se conserva el formato legible de Spring Boot.
