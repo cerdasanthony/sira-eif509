@@ -444,6 +444,22 @@ abstract class ApiRestContrato {
     }
 
     @Test
+    void infoPublicaSoloElCommitDesplegadoParaQueLaCiVerifiqueLaVersion() throws Exception {
+        mvc.perform(get("/actuator/info")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.despliegue.commit").exists())
+                // Sin la plataforma delante no hay commit que publicar.
+                .andExpect(jsonPath("$.despliegue.commit").value("local"))
+                // El contribuidor de entorno no debe arrastrar nada mas.
+                .andExpect(jsonPath("$.java").doesNotExist())
+                .andExpect(jsonPath("$.os").doesNotExist())
+                .andExpect(jsonPath("$.build").doesNotExist())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("password"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("secret"))));
+    }
+
+    @Test
     void todaRespuestaLlevaLasCabecerasDeSeguridadYLaApiNoPermiteRecursosExternos() throws Exception {
         mvc.perform(get("/api/v1/participantes").secure(true).header("Authorization", profesional))
                 .andExpect(status().isOk())

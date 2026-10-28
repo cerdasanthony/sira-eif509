@@ -175,7 +175,8 @@ public class SeguridadConfig {
                 .requestCache(cache -> cache.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/error", "/auth/login", "/swagger-ui.html", "/swagger-ui/**",
-                                "/v3/api-docs/**", "/v3/api-docs.yaml", "/actuator/health").permitAll()
+                                "/v3/api-docs/**", "/v3/api-docs.yaml", "/actuator/health", "/actuator/info")
+                            .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/**").hasAnyRole("PROFESIONAL", "ENCARGADO")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/usuarios/me").hasAnyRole("PROFESIONAL", "ENCARGADO")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/usuarios/me").hasAnyRole("PROFESIONAL", "ENCARGADO")
