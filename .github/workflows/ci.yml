@@ -92,7 +92,7 @@ jobs:
 
       - name: Publicar reporte de pruebas
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-pruebas
           path: build/reports/tests/test
@@ -100,7 +100,7 @@ jobs:
 
       - name: Publicar reporte de cobertura JaCoCo
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-cobertura-jacoco
           path: build/reports/jacoco/test
