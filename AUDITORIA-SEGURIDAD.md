@@ -11,7 +11,7 @@ hubo hallazgo se indica cómo se comprobó, para que la revisión se pueda repet
 Este documento no contiene claves, tokens, URL de deploy hooks ni ningún otro dato
 sensible real: solo nombres de variables y rutas de archivos.
 
-Todas las correcciones viajan en el commit [`feda6ef`](https://github.com/cerdasanthony/sira-eif509/commit/feda6ef32535c2b94df08afcb113abc9faf27b27); su contenido esta detallado en
+Las correcciones iniciales viajan en el commit [`feda6ef`](https://github.com/cerdasanthony/sira-eif509/commit/feda6ef32535c2b94df08afcb113abc9faf27b27); su contenido esta detallado en
 [Commits de las correcciones](#commits-de-las-correcciones).
 
 ## 1. Lista de verificación de la Sesión 14
@@ -151,18 +151,43 @@ gh api -X PUT repos/cerdasanthony/sira-eif509/branches/main/protection \
 | Reglas de negocio y configuración (unitarias, Mockito) | 37 | Siempre |
 | `ControlIntentosIngresoTest`, `EventosSeguridadTest`, `ManejadorErroresApiTest` | 13 | Siempre |
 | `BloqueoOptimistaRutinaTest` | 3 | Siempre (H2) |
-| `MvcLocalTest` | 15 | Siempre (H2) |
-| `ApiRestLocalTest` | 28 | Siempre (H2) |
-| `ApiRestIntegracionTest` | 28 | Con Docker; obligatorio en la CI |
+| `MvcLocalTest` | 16 | Siempre (H2) |
+| `ApiRestLocalTest` | 30 | Siempre (H2) |
+| `ApiRestIntegracionTest` | 30 | Con Docker; obligatorio en la CI |
 | `PersistenciaIntegracionTest` | 8 | Con Docker; obligatorio en la CI |
 | `CierreEjecucionRollbackIntegracionTest` | 1 | Con Docker; obligatorio en la CI |
 | `BloqueoOptimistaIntegracionTest` | 2 | Con Docker; obligatorio en la CI |
-| **Total en la CI** | **135** | |
+| **Total esperado en la CI** | **140** | |
 
-Sin Docker se ejecutan 96; el pipeline exige al menos 40 en verde y rechaza que las
+Sin Docker se ejecutan 99; el pipeline exige al menos 40 en verde y rechaza que las
 pruebas de integración se omitan.
 
 ## Commits de las correcciones
+
+### Revision del 19 de noviembre de 2026
+
+Al contrastar la implementacion existente con la guia del Laboratorio 7 se encontraron
+estas brechas adicionales. Las correcciones de esta revision estan en el commit
+[`902a4ed`](https://github.com/cerdasanthony/sira-eif509/commit/902a4edc711fa65204439641ba33740c7b0093fd)
+de la rama `codex/laboratorio-7`. Su publicacion, CI completa y despliegue deben
+verificarse antes de cerrar la revision en produccion.
+
+| Verificacion / categoria | Hallazgo y riesgo | Correccion y comprobacion | Commit |
+|---|---|---|---|
+| Concurrencia / A06 | `version` era opcional al guardar y publicar. Un cliente podia omitirla y sobrescribir una edicion guardada desde que abrio el formulario; `@Version` solo detecta la carrera dentro de la transaccion actual | `RutinaApiService` exige una version no negativa para ambas operaciones, conservando la creacion sin version. La API devuelve 400 si falta o es negativa y 409 si esta vencida. Pruebas: `omitirONegarLaVersionNoPermiteGuardarNiPublicarUnBorrador` en H2 y PostgreSQL, y `elPanelNoGuardaNiPublicaSiSeOmiteLaVersion` en MVC | [`902a4ed`](https://github.com/cerdasanthony/sira-eif509/commit/902a4edc711fa65204439641ba33740c7b0093fd) |
+| Eventos de seguridad / A09 | Los conflictos capturados por el controlador MVC conservaban el formulario, pero no llegaban al manejador global y no dejaban evento | El controlador MVC registra `conflicto_version` tanto al guardar como al publicar. La prueba `elFormularioDeRutinaLlevaLaVersionYRechazaGuardarUnaCopiaVencida` comprueba ambos eventos | [`902a4ed`](https://github.com/cerdasanthony/sira-eif509/commit/902a4edc711fa65204439641ba33740c7b0093fd) |
+| Pipeline / A08 | `render.yaml` no desactivaba los despliegues de Render por cada push; ademas, un hook sin `ref` podia desplegar un commit mas reciente que el verificado | `autoDeployTrigger: 'off'` en API y SPA; ambos hooks reciben `ref` con `github.sha` y un limite de 60 segundos. Sintaxis YAML validada. Debe sincronizarse el Blueprint o aplicar **Auto-Deploy: Off** a ambos servicios existentes antes de considerar cerrado el hallazgo en produccion | [`902a4ed`](https://github.com/cerdasanthony/sira-eif509/commit/902a4edc711fa65204439641ba33740c7b0093fd) |
+
+La consulta de solo lectura a la
+[rama main](https://api.github.com/repos/cerdasanthony/sira-eif509/branches/main)
+confirmo `protected: true` el 19 de noviembre. La respuesta publica no acredita por si
+sola cada regla de proteccion; `docs/proteccion-main.json` conserva la configuracion
+esperada. La
+[CI de referencia](https://github.com/cerdasanthony/sira-eif509/actions/runs/43847244285)
+estaba en verde para `a0ca431`; ese resultado corresponde a la base de esta revision,
+no a los cambios locales.
+
+### Implementacion inicial
 
 Las correcciones del Laboratorio 7 se confirmaron juntas, porque se sostienen entre si:
 el conflicto de concurrencia necesita el manejador de errores y el evento de seguridad,

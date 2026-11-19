@@ -48,9 +48,9 @@ Las rutas antiguas sin version fueron reemplazadas.
 | GET /api/v1/rutinas/{id} | 200, detalle y pasos | Propia; ENCARGADO ve PUBLICADA |
 | GET /api/v1/rutinas/{id}/pasos | 200, pasos ordenados | Igual que rutina |
 | POST /api/v1/rutinas | 201 + Location | PROFESIONAL asignado; BORRADOR |
-| PUT /api/v1/rutinas/{id} | 200 | PROFESIONAL asignado; BORRADOR |
+| PUT /api/v1/rutinas/{id} | 200 | PROFESIONAL asignado; BORRADOR; `version` obligatoria en el cuerpo |
 | DELETE /api/v1/rutinas/{id} | 204 | PROFESIONAL asignado; BORRADOR |
-| POST /api/v1/rutinas/{id}/publicaciones | 200, estado y duracion | PROFESIONAL asignado |
+| POST /api/v1/rutinas/{id}/publicaciones?version=N | 200, estado y duracion | PROFESIONAL asignado; version obligatoria |
 | GET /api/v1/ejecuciones | 200, pagina | Historial de participantes asignados |
 | GET /api/v1/ejecuciones/{id} | 200, detalle y registros | Participante asignado |
 | GET /api/v1/ejecuciones/{id}/registros | 200, resultados por paso | Participante asignado |
