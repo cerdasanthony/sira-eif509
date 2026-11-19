@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 
-# Un despliegue a la vez; si llegan dos push seguidos, gana el ultimo.
+# Un workflow por referencia; los despliegues en curso terminan sin cancelarse.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: false
@@ -130,14 +130,16 @@ jobs:
       - name: Pedir el despliegue de la API
         env:
           HOOK_API: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+          COMMIT: ${{ github.sha }}
         # --fail-with-body corta el workflow si la plataforma responde con error.
         # La URL del hook es un secreto: nunca se imprime.
-        run: curl --silent --show-error --fail-with-body --output /dev/null "$HOOK_API"
+        run: curl --silent --show-error --fail-with-body --max-time 60 --get --data-urlencode "ref=$COMMIT" --output /dev/null "$HOOK_API"
 
       - name: Pedir el despliegue de la SPA
         env:
           HOOK_SPA: ${{ secrets.RENDER_DEPLOY_HOOK_SPA }}
-        run: curl --silent --show-error --fail-with-body --output /dev/null "$HOOK_SPA"
+          COMMIT: ${{ github.sha }}
+        run: curl --silent --show-error --fail-with-body --max-time 60 --get --data-urlencode "ref=$COMMIT" --output /dev/null "$HOOK_SPA"
 
       - name: Esperar a que la version nueva responda UP
         env:

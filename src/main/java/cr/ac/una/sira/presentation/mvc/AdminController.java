@@ -160,7 +160,7 @@ public class AdminController {
     @PostMapping("/admin/rutinas/guardar")
     public String guardarRutina(@RequestParam(required = false) Long id,
             @Valid @ModelAttribute("form") RutinaFormulario form, BindingResult result,
-            Model model, RedirectAttributes flash) {
+            Model model, RedirectAttributes flash, HttpServletRequest request) {
         if (!result.hasErrors()) {
             try {
                 if (id == null) rutinas.crear(form.entrada()); else rutinas.actualizar(id, form.entrada());
@@ -168,7 +168,7 @@ public class AdminController {
                 return "redirect:/admin/rutinas";
             } catch (IllegalArgumentException | EntradaNegocioInvalidaException | ConflictoRecursoException
                     | RecursoNoEncontradoException | OptimisticLockingFailureException ex) {
-                result.reject("negocio", mensaje(ex));
+                result.reject("negocio", mensaje(ex, request));
             }
         }
         model.addAttribute("id", id);
@@ -177,18 +177,21 @@ public class AdminController {
 
     @PostMapping("/admin/rutinas/{id}/publicar")
     public String publicar(@PathVariable Long id, @RequestParam(required = false) Long version,
-            RedirectAttributes flash) {
+            RedirectAttributes flash, HttpServletRequest request) {
         try {
             rutinas.publicar(id, version);
             flash.addFlashAttribute("mensaje", "Rutina publicada y disponible para el encargado");
-        } catch (ReglaNegocioException | ConflictoRecursoException | OptimisticLockingFailureException ex) {
-            flash.addFlashAttribute("error", mensaje(ex));
+        } catch (IllegalArgumentException | ReglaNegocioException | ConflictoRecursoException | OptimisticLockingFailureException ex) {
+            flash.addFlashAttribute("error", mensaje(ex, request));
         }
         return "redirect:/admin/rutinas";
     }
 
     /** El conflicto de @Version llega sin texto util; el resto ya trae su explicacion. */
-    private String mensaje(Exception ex) {
+    private String mensaje(Exception ex, HttpServletRequest request) {
+        if (ex instanceof ConflictoVersionException || ex instanceof OptimisticLockingFailureException) {
+            eventos.conflictoDeVersion(request.getMethod(), request.getRequestURI());
+        }
         return ex instanceof OptimisticLockingFailureException
                 ? "Otra persona guardo esta rutina mientras usted la editaba."
                         + " Vuelva a abrirla y repita el cambio."

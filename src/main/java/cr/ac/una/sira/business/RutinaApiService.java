@@ -99,9 +99,6 @@ public class RutinaApiService {
     }
 
     @Transactional
-    public PublicarRutinaSalida publicar(Long id) { return publicar(id, null); }
-
-    @Transactional
     public PublicarRutinaSalida publicar(Long id, Long version) {
         Usuario profesional = acceso.exigirRol(RolUsuario.PROFESIONAL);
         Rutina rutina = obtenerEntidad(id);
@@ -116,7 +113,10 @@ public class RutinaApiService {
      * La carrera que ocurre despues de esta comprobacion la detecta @Version al escribir.
      */
     private void exigirVersionVigente(Rutina rutina, Long version) {
-        if (version != null && version != rutina.getVersion()) {
+        if (version == null || version < 0) {
+            throw new IllegalArgumentException("Debe enviar la version leida al abrir el borrador");
+        }
+        if (version != rutina.getVersion()) {
             throw new ConflictoVersionException("la rutina");
         }
     }

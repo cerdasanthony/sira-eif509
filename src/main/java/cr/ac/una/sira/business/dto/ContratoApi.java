@@ -61,7 +61,7 @@ public final class ContratoApi {
             @NotNull @Size(max = 7) Set<@NotNull @Min(1) @Max(7) Short> diasSemana,
             @NotNull @Size(max = 100) List<@NotNull @Valid PasoEntrada> pasos,
             @PositiveOrZero
-            @Schema(description = "Version leida al abrir el borrador; si otra persona guardo antes, la respuesta es 409")
+            @Schema(description = "Obligatoria al actualizar; no se requiere al crear. Version leida al abrir el borrador; si otra persona guardo antes, la respuesta es 409")
             Long version) { }
 
     public record RutinaResumen(Long id, Long participanteId, String nombre, LocalTime horaInicio,
