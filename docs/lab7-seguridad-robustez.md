@@ -84,8 +84,8 @@ ambos servicios. GitHub Actions llama a los hooks con `ref=github.sha`: asi soli
 el commit verificado aunque la rama ya haya avanzado.
 
 En servicios ya creados hay que sincronizar el Blueprint o configurar **Auto-Deploy:
-Off** en ambos servicios. El cambio del archivo local no acredita que esa configuracion
-ya este aplicada en Render. Las referencias de la plataforma son
+Off** en ambos servicios. El 19 de noviembre se configuro y verifico **Off** en el
+panel de los servicios API y SPA existentes. Las referencias de la plataforma son
 [autoDeployTrigger](https://render.com/docs/blueprint-spec#autodeploytrigger) y
 [deploy hooks con commit especifico](https://render.com/docs/deploy-hooks#deploying-a-specific-git-commit).
 
@@ -154,5 +154,6 @@ referencia es la de GitHub Actions, que corre la suite completa con Docker.
 - `ci.yml` y `render.yaml`: sintaxis validada con SnakeYAML; `git diff --check`, correcto.
 - Las 41 pruebas de PostgreSQL deben ejecutarse en la CI al publicar estos cambios;
   no se presentan como aprobadas en esta verificacion local.
-- `main` protegida segun la API publica de GitHub. La configuracion real de Render
-  y el despliegue de esta revision no se modificaron desde este entorno.
+- `main` protegida segun la API publica de GitHub. Auto-Deploy cambiado de On Commit
+  a Off y guardado en los servicios API y SPA de Render. El despliegue de esta revision
+  sigue pendiente de publicar la rama y pasar la CI.

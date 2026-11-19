@@ -187,6 +187,13 @@ esperada. La
 estaba en verde para `a0ca431`; ese resultado corresponde a la base de esta revision,
 no a los cambios locales.
 
+El 19 de noviembre se aplico **Auto-Deploy: Off** y se verifico el guardado en los
+servicios existentes de Render:
+[API](https://dashboard.render.com/web/srv-dbd6qal9fdbs73akoiqg/settings) y
+[SPA](https://dashboard.render.com/static/srv-dbd6prd9fdbs73akmpu0/settings).
+Este paso completa la configuracion de la plataforma; publicar los commits y verificar
+su CI y despliegue continua pendiente de autenticar Git con `cerdasanthony`.
+
 ### Implementacion inicial
 
 Las correcciones del Laboratorio 7 se confirmaron juntas, porque se sostienen entre si:
