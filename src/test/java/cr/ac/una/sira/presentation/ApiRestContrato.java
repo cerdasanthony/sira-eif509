@@ -243,24 +243,24 @@ abstract class ApiRestContrato {
         mvc.perform(get(ruta + "/pasos").header("Authorization", profesional))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].orden").value(1));
         mvc.perform(put(ruta).header("Authorization", profesional)
-                .contentType(MediaType.APPLICATION_JSON).content(rutina(2)))
+                .contentType(MediaType.APPLICATION_JSON).content(rutina(2, version(ruta))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.pasos.length()").value(2));
         mvc.perform(get(ruta).header("Authorization", encargado)).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/rutinas?estado=BORRADOR").header("Authorization", encargado))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(0));
-        mvc.perform(post(ruta + "/publicaciones").header("Authorization", profesional))
+        mvc.perform(post(ruta + "/publicaciones?version=" + version(ruta)).header("Authorization", profesional))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("PUBLICADA"))
                 .andExpect(jsonPath("$.duracionTotalMinutos").value(10));
         mvc.perform(get(ruta).header("Authorization", encargado)).andExpect(status().isOk());
-        mvc.perform(put(ruta).header("Authorization", profesional).contentType(MediaType.APPLICATION_JSON).content(rutina(2)))
+        mvc.perform(put(ruta).header("Authorization", profesional).contentType(MediaType.APPLICATION_JSON).content(rutina(2, version(ruta))))
                 .andExpect(status().isConflict());
-        mvc.perform(post(ruta + "/publicaciones").header("Authorization", profesional)).andExpect(status().isConflict());
+        mvc.perform(post(ruta + "/publicaciones?version=" + version(ruta)).header("Authorization", profesional)).andExpect(status().isConflict());
     }
 
     @Test
     void publicarRutinaIncompleta422YEliminarBorrador204() throws Exception {
         String ruta = crearRutina(1);
-        mvc.perform(post(ruta + "/publicaciones").header("Authorization", profesional))
+        mvc.perform(post(ruta + "/publicaciones?version=" + version(ruta)).header("Authorization", profesional))
                 .andExpect(status().isUnprocessableEntity());
         mvc.perform(delete(ruta).header("Authorization", profesional)).andExpect(status().isNoContent());
         mvc.perform(get(ruta).header("Authorization", profesional)).andExpect(status().isNotFound());
@@ -273,7 +273,7 @@ abstract class ApiRestContrato {
                 .andExpect(status().isUnprocessableEntity());
         String ruta = crearRutina(2);
         mvc.perform(put(ruta).header("Authorization", profesional).contentType(MediaType.APPLICATION_JSON)
-                .content(rutina(2).replace("\"participanteId\":1", "\"participanteId\":2")))
+                .content(rutina(2, version(ruta)).replace("\"participanteId\":1", "\"participanteId\":2")))
                 .andExpect(status().isConflict());
         jdbc.update("UPDATE participante SET activo=false WHERE id=1");
         entityManager.clear();
@@ -479,6 +479,34 @@ abstract class ApiRestContrato {
                 .andExpect(header().string("Content-Security-Policy",
                         org.hamcrest.Matchers.containsString("'unsafe-inline'")))
                 .andExpect(header().string("X-Frame-Options", "DENY"));
+    }
+
+    @Test
+    void omitirONegarLaVersionNoPermiteGuardarNiPublicarUnBorrador() throws Exception {
+        // Crear no requiere version; guardar o publicar si, incluso tras otro guardado.
+        String ruta = crearRutina(2);
+        long inicial = version(ruta);
+        mvc.perform(put(ruta).header("Authorization", profesional)
+                .contentType(MediaType.APPLICATION_JSON).content(rutina(2, inicial)))
+                .andExpect(status().isOk());
+        long vigente = version(ruta);
+
+        for (String cuerpo : new String[]{rutina(1), rutina(1, -1),
+                rutina(1).replace("]}", "],\"version\":null}")}) {
+            mvc.perform(put(ruta).header("Authorization", profesional)
+                    .contentType(MediaType.APPLICATION_JSON).content(cuerpo))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentTypeCompatibleWith("application/problem+json"));
+        }
+        for (String parametro : new String[]{"", "?version=-1"}) {
+            mvc.perform(post(ruta + "/publicaciones" + parametro).header("Authorization", profesional))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentTypeCompatibleWith("application/problem+json"));
+        }
+        mvc.perform(get(ruta).header("Authorization", profesional))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(vigente))
+                .andExpect(jsonPath("$.estado").value("BORRADOR"))
+                .andExpect(jsonPath("$.pasos.length()").value(2));
     }
 
     private MockHttpServletRequestBuilder desde(String origen) {

@@ -99,11 +99,12 @@ GET {{base}}/api/v1/rutinas/{{rutinaId}}/pasos
 Authorization: Bearer {{pro}}
 
 ### Reemplazar borrador y pasos: 200; ejecutar antes de publicar
+# Version 0 si acaba de crearse; si ya se edito, use la version del GET.
 PUT {{base}}/api/v1/rutinas/{{rutinaId}}
 Authorization: Bearer {{pro}}
 Content-Type: application/json
 
-{"participanteId":{{participanteId}},"nombre":"Prepararse para dormir","horaInicio":"21:15:00","vigenciaDesde":"2026-08-01","vigenciaHasta":null,"diasSemana":[1,2,3,4,5,6,7],"pasos":[{"descripcion":"Preparar pijama","duracionEstimadaMin":5},{"descripcion":"Guardar ropa","duracionEstimadaMin":5}]}
+{"participanteId":{{participanteId}},"nombre":"Prepararse para dormir","horaInicio":"21:15:00","vigenciaDesde":"2026-08-01","vigenciaHasta":null,"diasSemana":[1,2,3,4,5,6,7],"pasos":[{"descripcion":"Preparar pijama","duracionEstimadaMin":5},{"descripcion":"Guardar ropa","duracionEstimadaMin":5}],"version":0}
 
 ### Guardar con la version vencida: 409 CONFLICTO_VERSION
 # El PUT anterior dejo la rutina en la version siguiente; repetir la version 0
@@ -115,7 +116,8 @@ Content-Type: application/json
 {"participanteId":{{participanteId}},"nombre":"Prepararse para dormir (otra ventana)","horaInicio":"21:15:00","vigenciaDesde":"2026-08-01","vigenciaHasta":null,"diasSemana":[1,2,3,4,5,6,7],"pasos":[{"descripcion":"Preparar pijama","duracionEstimadaMin":5},{"descripcion":"Guardar ropa","duracionEstimadaMin":5}],"version":0}
 
 ### Proceso de publicacion: 200; repetir devuelve 409
-POST {{base}}/api/v1/rutinas/{{rutinaId}}/publicaciones
+# El PUT anterior devuelve la version vigente. Copiela aqui si difiere de 1.
+POST {{base}}/api/v1/rutinas/{{rutinaId}}/publicaciones?version=1
 Authorization: Bearer {{pro}}
 
 ### Historial propio con rango/adherencia: 200

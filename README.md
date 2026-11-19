@@ -73,7 +73,7 @@ Swagger UI: <http://localhost:8080/swagger-ui.html>.
 | `GET /api/v1/ejecuciones` | Historial propio por fechas y adherencia |
 | `GET /actuator/health` | Estado de salud publico, sin detalles internos |
 | `GET /actuator/info` | Commit desplegado; lo usa la CI para verificar el despliegue |
-| `PUT /api/v1/rutinas/{id}` | Acepta `version`; 409 `CONFLICTO_VERSION` si otra sesion guardo antes |
+| `PUT /api/v1/rutinas/{id}` | Requiere `version`; 400 si falta, 409 `CONFLICTO_VERSION` si otra sesion guardo antes |
 | `POST /api/v1/rutinas/{id}/publicaciones?version=N` | Misma proteccion al publicar |
 
 **Solo en local, con el perfil `demo` o `dev`**, iniciar sesion con
@@ -104,7 +104,8 @@ Las dependencias van en una sola dirección: `presentación -> negocio -> datos`
 ./gradlew test
 ```
 
-La suite tiene 135 pruebas en la integracion continua y 96 sin Docker.
+La suite define 140 pruebas: 99 se ejecutan sin Docker y 41 requieren PostgreSQL
+con Testcontainers, obligatorio en la integracion continua.
 Las pruebas unitarias con Mockito ejercitan los caminos felices y las reglas de
 los dos procesos sin levantar Spring. Las pruebas de integracion usan
 Testcontainers con PostgreSQL 16 real para validar persistencia y demostrar que
@@ -171,6 +172,9 @@ En ambos casos la respuesta es `409` con Problem Details y el codigo `CONFLICTO_
 y el conflicto queda registrado como evento de seguridad. El detalle y las pruebas que
 provocan el conflicto estan en la
 [auditoria de seguridad](AUDITORIA-SEGURIDAD.md#3-concurrencia-por-que-la-rutina-y-no-otra-cosa).
+
+La version es obligatoria al guardar y publicar, tanto en la API como en MVC: omitirla
+no permite eludir la proteccion. Crear un borrador no requiere version.
 
 ## Seguridad y observabilidad
 

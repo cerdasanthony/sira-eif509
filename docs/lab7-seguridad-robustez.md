@@ -20,7 +20,7 @@ correcciones, está en [AUDITORIA-SEGURIDAD.md](../AUDITORIA-SEGURIDAD.md).
 | Despliegue verificado contra la version nueva | `/actuator/info` publica `RENDER_GIT_COMMIT` y el pipeline espera ese SHA |
 | Registros estructurados | [`logback-spring.xml`](../src/main/resources/logback-spring.xml), JSON a la salida estándar en el perfil `prod` |
 | Eventos de seguridad registrados | `EventosSeguridad`: ingresos fallidos, cuentas en espera, accesos denegados y conflictos, sin passwords ni tokens |
-| Al menos 40 pruebas en verde | 135 en la CI; el pipeline falla si bajan de 40 |
+| Al menos 40 pruebas en verde | 140 definidas (99 sin Docker, 41 con PostgreSQL); el pipeline falla si bajan de 40 o se omiten las de integracion |
 
 ## Archivos nuevos
 
@@ -73,6 +73,22 @@ curl -i -X PUT "http://localhost:8080/api/v1/rutinas/10" \
 La segunda llamada con la misma `version` responde `409` y
 `{"codigo":"CONFLICTO_VERSION", ...}` en `application/problem+json`.
 
+Guardar o publicar sin `version`, o con una version negativa, se rechaza: 400 en la
+API, error de formulario o aviso en MVC. Crear no requiere version. La comprobacion
+vive en el servicio para que las dos interfaces apliquen la misma regla.
+
+### Despliegue despues de la CI
+
+`render.yaml` desactiva los despliegues por push con `autoDeployTrigger: 'off'` en
+ambos servicios. GitHub Actions llama a los hooks con `ref=github.sha`: asi solicita
+el commit verificado aunque la rama ya haya avanzado.
+
+En servicios ya creados hay que sincronizar el Blueprint o configurar **Auto-Deploy:
+Off** en ambos servicios. El 19 de noviembre se configuro y verifico **Off** en el
+panel de los servicios API y SPA existentes. Las referencias de la plataforma son
+[autoDeployTrigger](https://render.com/docs/blueprint-spec#autodeploytrigger) y
+[deploy hooks con commit especifico](https://render.com/docs/deploy-hooks#deploying-a-specific-git-commit).
+
 ### El freno de intentos
 
 ```bash
@@ -124,3 +140,21 @@ referencia es la de GitHub Actions, que corre la suite completa con Docker.
   `BloqueoOptimistaIntegracionTest`, 39 pruebas) no se ejecutaron en esta máquina: las
   corre la integración continua, que además rechaza que se omitan.
 - `render.yaml`, `ci.yml`, `dependabot.yml` y `proteccion-main.json`: sintaxis válida.
+
+### Resultado local del 19 de noviembre de 2026
+
+- `gradlew.bat build --no-daemon`, Java 21.0.13 y Gradle 9.5.1: correcto, incluido
+  `jacocoTestCoverageVerification`.
+- Backend: 140 pruebas descubiertas, 99 aprobadas, cero fallos y 41 omitidas por
+  falta de Docker. Incluye las pruebas de seguridad, concurrencia con H2, la nueva
+  comprobacion de version obligatoria en API/MVC y los eventos de conflicto MVC.
+- Cobertura de lineas: 98,4 % en `cr.ac.una.sira.business`; DTOs y excepciones, 100 %.
+- SPA: `npm ci`, `npm test` (23 aprobadas) y `npm run build`, correctos; la instalacion
+  informo cero vulnerabilidades conocidas.
+- `ci.yml` y `render.yaml`: sintaxis validada con SnakeYAML; `git diff --check`, correcto.
+- Las 41 pruebas de PostgreSQL deben ejecutarse en la CI al publicar estos cambios;
+  no se presentan como aprobadas en esta verificacion local.
+- `main` protegida segun la API publica de GitHub. Auto-Deploy cambiado de On Commit
+  a Off y guardado en los servicios API y SPA de Render. Revision publicada en el
+  [PR 32](https://github.com/cerdasanthony/sira-eif509/pull/32); los resultados completos
+  y el despliegue se consultan en los checks del PR y en el workflow de `main`.

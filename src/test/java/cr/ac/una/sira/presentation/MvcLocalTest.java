@@ -31,6 +31,8 @@ class MvcLocalTest {
     @Autowired UsuarioRepository usuarios;
     @Autowired PasswordEncoder passwords;
     @Autowired com.fasterxml.jackson.databind.ObjectMapper mapper;
+    @org.springframework.boot.test.mock.mockito.SpyBean
+    cr.ac.una.sira.business.EventosSeguridad eventos;
 
     @BeforeEach
     void credenciales() {
@@ -210,7 +212,7 @@ class MvcLocalTest {
                 .param("pasosTexto", "Preparar los materiales | 3\nGuardar los materiales | 2"))
                 .andExpect(redirectedUrl("/admin/rutinas"));
         mvc.perform(get("/admin/rutinas/10/editar").session(session)).andExpect(status().isOk());
-        mvc.perform(post("/admin/rutinas/10/publicar").session(session).with(csrf()))
+        mvc.perform(post("/admin/rutinas/10/publicar").session(session).with(csrf()).param("version", "0"))
                 .andExpect(redirectedUrl("/admin/rutinas")).andExpect(flash().attributeExists("mensaje"));
     }
 
@@ -246,6 +248,31 @@ class MvcLocalTest {
 
         mvc.perform(post("/admin/rutinas/10/publicar").session(session).with(csrf()).param("version", "0"))
                 .andExpect(redirectedUrl("/admin/rutinas")).andExpect(flash().attributeExists("error"));
+        org.mockito.Mockito.verify(eventos).conflictoDeVersion("POST", "/admin/rutinas/guardar");
+        org.mockito.Mockito.verify(eventos).conflictoDeVersion("POST", "/admin/rutinas/10/publicar");
+    }
+
+    @Test
+    void elPanelNoGuardaNiPublicaSiSeOmiteLaVersion() throws Exception {
+        var session = ingresar("mariana.vargas@sira.local");
+        mvc.perform(post("/admin/rutinas/guardar").session(session).with(csrf())
+                .param("participanteId", "1").param("nombre", "Rutina original").param("horaInicio", "10:00")
+                .param("vigenciaDesde", "2026-10-01").param("diasSemana", "1", "2")
+                .param("pasosTexto", "Preparar materiales | 3\nGuardar materiales | 2"))
+                .andExpect(redirectedUrl("/admin/rutinas"));
+        mvc.perform(post("/admin/rutinas/guardar").session(session).with(csrf()).param("id", "10")
+                .param("participanteId", "1").param("nombre", "Cambio sin version").param("horaInicio", "10:00")
+                .param("vigenciaDesde", "2026-10-01").param("diasSemana", "1", "2")
+                .param("pasosTexto", "Otro paso | 5"))
+                .andExpect(status().isOk()).andExpect(model().attributeHasErrors("form"));
+        mvc.perform(post("/admin/rutinas/10/publicar").session(session).with(csrf()))
+                .andExpect(redirectedUrl("/admin/rutinas")).andExpect(flash().attributeExists("error"));
+        var respuesta = mvc.perform(get("/admin/rutinas/10/editar").session(session))
+                .andExpect(status().isOk()).andReturn();
+        var form = (cr.ac.una.sira.presentation.mvc.RutinaFormulario)
+                respuesta.getModelAndView().getModel().get("form");
+        assertThat(form.nombre()).isEqualTo("Rutina original");
+        assertThat(form.version()).isZero();
     }
 
     @Test
