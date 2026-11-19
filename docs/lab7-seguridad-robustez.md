@@ -155,5 +155,6 @@ referencia es la de GitHub Actions, que corre la suite completa con Docker.
 - Las 41 pruebas de PostgreSQL deben ejecutarse en la CI al publicar estos cambios;
   no se presentan como aprobadas en esta verificacion local.
 - `main` protegida segun la API publica de GitHub. Auto-Deploy cambiado de On Commit
-  a Off y guardado en los servicios API y SPA de Render. El despliegue de esta revision
-  sigue pendiente de publicar la rama y pasar la CI.
+  a Off y guardado en los servicios API y SPA de Render. Revision publicada en el
+  [PR 32](https://github.com/cerdasanthony/sira-eif509/pull/32); los resultados completos
+  y el despliegue se consultan en los checks del PR y en el workflow de `main`.

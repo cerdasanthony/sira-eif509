@@ -172,6 +172,9 @@ estas brechas adicionales. Las correcciones de esta revision estan en el commit
 de la rama `codex/laboratorio-7`. Su publicacion, CI completa y despliegue deben
 verificarse antes de cerrar la revision en produccion.
 
+Revision publicada en el [PR 32](https://github.com/cerdasanthony/sira-eif509/pull/32),
+con [CI completa](https://github.com/cerdasanthony/sira-eif509/actions?query=branch%3Acodex%2Flaboratorio-7).
+
 | Verificacion / categoria | Hallazgo y riesgo | Correccion y comprobacion | Commit |
 |---|---|---|---|
 | Concurrencia / A06 | `version` era opcional al guardar y publicar. Un cliente podia omitirla y sobrescribir una edicion guardada desde que abrio el formulario; `@Version` solo detecta la carrera dentro de la transaccion actual | `RutinaApiService` exige una version no negativa para ambas operaciones, conservando la creacion sin version. La API devuelve 400 si falta o es negativa y 409 si esta vencida. Pruebas: `omitirONegarLaVersionNoPermiteGuardarNiPublicarUnBorrador` en H2 y PostgreSQL, y `elPanelNoGuardaNiPublicaSiSeOmiteLaVersion` en MVC | [`902a4ed`](https://github.com/cerdasanthony/sira-eif509/commit/902a4edc711fa65204439641ba33740c7b0093fd) |
@@ -191,8 +194,8 @@ El 19 de noviembre se aplico **Auto-Deploy: Off** y se verifico el guardado en l
 servicios existentes de Render:
 [API](https://dashboard.render.com/web/srv-dbd6qal9fdbs73akoiqg/settings) y
 [SPA](https://dashboard.render.com/static/srv-dbd6prd9fdbs73akmpu0/settings).
-Este paso completa la configuracion de la plataforma; publicar los commits y verificar
-su CI y despliegue continua pendiente de autenticar Git con `cerdasanthony`.
+Este paso completa la configuracion de la plataforma. Los commits estan publicados;
+la CI y el despliegue se consultan desde el PR enlazado arriba.
 
 ### Implementacion inicial
 
